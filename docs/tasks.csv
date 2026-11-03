@@ -11,7 +11,7 @@ AG-09,TV3,#finetuning,Fine-tuning DistilBERT,Chạy --mode finetune; encoder đ�
 AG-10,TV3,#experiment,Chọn learning rate fine-tuning,"Thử 2e-5 và 5e-5; giữ cùng split, max_length và train limit",AG-09,Tuần 2,Todo
 AG-11,TV3,#optimization,Kiểm tra bộ nhớ và thời gian,"Ghi thiết bị, batch size, số tham số, thời gian; giảm batch khi OOM",AG-09,Tuần 2,Todo
 AG-12,TV3,#analysis,Giải thích fine-tuning,"Vẽ loss/validation-F1 từ run.json, nhận xét hội tụ",AG-10,Tuần 3,Todo
-AG-13,TV4,#evaluation,Chuẩn hóa đánh giá,"Accuracy, macro-F1, per-class P/R/F1, confusion matrix thứ tự 0..3",AG-03,Tuần 1,Todo
+AG-13,TV4,#evaluation,Chuẩn hóa đánh giá,"Accuracy, macro-F1, per-class P/R/F1, confusion matrix thứ tự 0..3",AG-03,Tuần 1,Done
 AG-14,TV4,#comparison,Đánh giá test và so sánh,Chỉ đánh giá test sau khi chốt cấu hình; tạo comparison.csv,AG-07; AG-10; AG-13,Tuần 3,Todo
 AG-15,TV4,#error-analysis,Phân tích lỗi,"Chọn ít nhất 20 mẫu sai từ test_predictions.csv, nhóm nguyên nhân",AG-14,Tuần 3,Todo
 AG-16,TV4,#testing,Kiểm thử pipeline,"Kiểm tra mapping, split leakage, load model, dự đoán 4 chủ đề",AG-05; AG-09,Tuần 3,Todo
