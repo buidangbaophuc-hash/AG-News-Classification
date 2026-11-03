@@ -75,44 +75,43 @@
 - Duplicate and conflicting-label records require review before preprocessing.
 - Original labels use values 1 to 4.
 
+
 ## 5. Duplicate and Data Quality Findings
 
 ### 5.1 Duplicate Text Analysis
 
-The training dataset contains 79 duplicate text groups, with each group appearing twice.
+The training dataset contains 79 duplicate text groups.
 
-Among these groups:
-
-* 64 groups have consistent labels.
-* 15 groups contain conflicting labels.
+- Consistent-label groups: 64
+- Conflicting-label groups: 15
 
 The conflicting label distribution is:
 
-| Conflicting Labels   | Number of Groups |
-| -------------------- | ---------------: |
-| Business vs Sci/Tech |               12 |
-| Business vs World    |                2 |
-| World vs Sci/Tech    |                1 |
-| Total                |               15 |
+| Conflicting Labels | Number of Groups |
+|---|---:|
+| Business vs Sci/Tech | 12 |
+| World vs Business | 2 |
+| World vs Sci/Tech | 1 |
+| Total | 15 |
 
 These inconsistencies indicate potential annotation ambiguity because identical articles are assigned different categories.
 
-The original labels should not be manually changed without a reliable source of ground truth.
+Original labels should not be manually changed without a reliable source of ground truth.
 
 ### 5.2 Train-Test Overlap
 
-Four identical articles appear in both the training and testing datasets.
+- Overlapping articles: 4
+- Same-label overlaps: 4
+- Conflicting-label overlaps: 0
 
-All four overlapping articles have consistent labels across the two datasets.
+Overlapping records may introduce data leakage if retained in both training and testing datasets.
 
-However, these records may introduce data leakage if retained in both training and testing.
-
-The preprocessing pipeline therefore follows the project's existing policy: retain the testing records and remove their corresponding training records.
+The preprocessing pipeline follows the project policy: retain testing records and remove corresponding training records.
 
 ### 5.3 Data Quality Conclusion
 
-The AG News dataset is well-balanced, contains no missing values or empty articles, and has valid class labels.
+The AG News dataset is well-balanced, contains no missing values or empty articles, and has valid labels.
 
-Nevertheless, duplicate articles, conflicting labels, and train-test overlap must be addressed during preprocessing.
+Duplicate articles, conflicting labels, and train-test overlap are handled through the preprocessing policy.
 
-The original raw datasets remain unchanged. All cleaning and deduplication operations will be performed on derived datasets.
+The original raw datasets remain unchanged. Cleaning and deduplication are performed on derived datasets.
