@@ -5,7 +5,7 @@ Tên TV1–TV5 là chỗ trống để thay bằng tên thật. “Tag” dùng 
 | Thành viên | Vai trò | Task | File chính |
 |---|---|---|---|
 | TV1 | Dữ liệu và EDA | AG-01 → AG-04 | src/data.py, tests/test_data.py |
-| TV2 | Baseline và frozen encoder | AG-05 → AG-08 | src/baseline.py; phối hợp src/transformer.py |
+| Bùi Đặng Bảo Phúc | Baseline và frozen encoder | AG-05 → AG-08 | src/baseline.py; phối hợp src/transformer.py |
 | TV3 | Fine-tuning và tối ưu | AG-09 → AG-12 | src/transformer.py |
 | TV4 | Đánh giá, phân tích lỗi và kiểm thử | AG-13 → AG-16 | src/metrics.py, outputs/, tests/ |
 | TV5 | Tích hợp, demo, báo cáo và thuyết trình | AG-17 → AG-20 | src/main.py, README.md, docs/ |
