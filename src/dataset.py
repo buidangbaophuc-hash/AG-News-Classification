@@ -33,3 +33,4 @@ def load_and_preprocess_data(train_path='train.csv', test_path='test.csv', val_s
     )
     
     return train_data, val_data, test_df[['text', 'label']]
+    
