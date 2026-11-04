@@ -1,9 +1,12 @@
 """AG-09 / AG-10 / AG-11 / AG-12 – Trần Đức Lĩnh (TV3).
 
 AG-09: Fine-tuning DistilBERT với chế độ finetune (toàn bộ encoder được cập nhật).
+       Tích hợp get_linear_schedule_with_warmup (warmup 10% + linear decay) chống catastrophic forgetting.
 AG-10: So sánh hai learning rate 2e-5 và 5e-5; chọn bằng validation macro-F1.
-AG-11: Ghi thông tin thiết bị, batch size, số tham số và thời gian huấn luyện.
-AG-12: Vẽ đồ thị loss/validation-F1 từ run.json và nhận xét hội tụ.
+AG-11: Ghi thông tin thiết bị (hỗ trợ CUDA, Apple MPS, CPU), batch size, số tham số,
+       bật Automatic Mixed Precision (AMP - FP16) giảm ~50% VRAM và đo thời gian huấn luyện.
+AG-12: Hỗ trợ eval_steps (1000-2000 steps) để bắt đỉnh F1 sớm; vẽ đồ thị loss/validation-F1
+       từ run.json và nhận xét hội tụ.
 """
 import json
 import random
@@ -14,9 +17,41 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, DataCollatorWithPadding
+from transformers import (
+    AutoTokenizer,
+    AutoModelForSequenceClassification,
+    DataCollatorWithPadding,
+    get_linear_schedule_with_warmup,
+)
 from .data import ROOT, LABELS, read_split
 from .metrics import report
+
+
+# ---------------------------------------------------------------------------
+# Thiết bị & Tiện ích Tối ưu (AG-11)
+# ---------------------------------------------------------------------------
+
+def get_device():
+    """Tự động phát hiện thiết bị: CUDA (NVIDIA), MPS (Apple Silicon), hoặc CPU."""
+    if torch.cuda.is_available():
+        return torch.device('cuda')
+    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        return torch.device('mps')
+    return torch.device('cpu')
+
+
+def get_autocast(device, enabled=True):
+    """Context manager cho Automatic Mixed Precision (AMP)."""
+    if hasattr(torch, 'amp') and hasattr(torch.amp, 'autocast'):
+        return torch.amp.autocast(device_type=device.type, dtype=torch.float16, enabled=enabled)
+    return torch.cuda.amp.autocast(enabled=enabled)
+
+
+def get_grad_scaler(device, enabled=True):
+    """GradScaler tương thích với các phiên bản PyTorch."""
+    if hasattr(torch, 'amp') and hasattr(torch.amp, 'GradScaler'):
+        return torch.amp.GradScaler('cuda', enabled=enabled)
+    return torch.cuda.amp.GradScaler(enabled=enabled)
 
 
 # ---------------------------------------------------------------------------
@@ -68,17 +103,19 @@ def infer(model, batches, device):
 
 
 # ---------------------------------------------------------------------------
-# AG-09 / AG-10 / AG-11: vòng huấn luyện chính
+# AG-09 / AG-10 / AG-11 / AG-12: vòng huấn luyện chính
 # ---------------------------------------------------------------------------
 
 def train(mode='finetune', model_name='distilbert/distilbert-base-uncased', epochs=3,
-          batch_size=16, max_length=128, limit=0, learning_rate=None):
-    """AG-09 & AG-11: Huấn luyện DistilBERT (finetune hoặc frozen).
+          batch_size=16, max_length=128, limit=0, learning_rate=None,
+          eval_steps=1500, use_amp=True, warmup_ratio=0.1):
+    """AG-09, AG-10, AG-11, AG-12: Huấn luyện DistilBERT (finetune hoặc frozen).
 
-    - Chế độ finetune: toàn bộ encoder được cập nhật theo AG-09.
-    - Chế độ frozen: chỉ classification head được cập nhật (TV2/AG-06).
-    - AG-11: ghi thiết bị, batch size, số tham số huấn luyện và thời gian vào run.json.
-    - Lưu checkpoint tốt nhất (theo validation macro-F1) vào outputs/{mode}/.
+    Các cải tiến cốt lõi:
+    - [AG-09/10] get_linear_schedule_with_warmup: 10% steps warmup + linear decay chống catastrophic forgetting.
+    - [AG-11] Automatic Mixed Precision (AMP - FP16) kết hợp GradScaler giảm ~50% VRAM, tăng tốc độ train.
+    - [AG-11] Hỗ trợ thiết bị Apple Silicon MPS bên cạnh CUDA và CPU.
+    - [AG-11/12] eval_steps (mặc định 1500 batches): đánh giá và lưu checkpoint liên tục bắt đỉnh F1 trước khi overfit.
     """
     # Cố định seed để tái hiện kết quả
     random.seed(42)
@@ -87,13 +124,14 @@ def train(mode='finetune', model_name='distilbert/distilbert-base-uncased', epoc
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(42)
 
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f'[AG-11] Thiết bị: {device}', flush=True)
+    device = get_device()
+    amp_enabled = (device.type == 'cuda' and use_amp)
+    print(f'[AG-11] Thiết bị: {device} | AMP (FP16): {amp_enabled}', flush=True)
 
     # Dữ liệu
     train_df = read_split('train', limit)
     valid_df = read_split('validation')
-    print(f'[AG-11] Train: {len(train_df)} mẫu | Validation: {len(valid_df)} mẫu', flush=True)
+    print(f'[AG-11] Train: {len(train_df):,} mẫu | Validation: {len(valid_df):,} mẫu', flush=True)
 
     # Tokenizer và model
     tokenizer = AutoTokenizer.from_pretrained(model_name)
@@ -120,13 +158,23 @@ def train(mode='finetune', model_name='distilbert/distilbert-base-uncased', epoc
     batches = loader(train_df, tokenizer, batch_size, max_length, shuffle=True)
     valid_batches = loader(valid_df, tokenizer, batch_size, max_length, shuffle=False)
 
-    # Learning rate mặc định theo AG-10: finetune dùng 2e-5, frozen dùng 1e-3
+    # Learning rate mặc định: finetune dùng 2e-5, frozen dùng 1e-3
     lr = learning_rate if learning_rate is not None else (1e-3 if mode == 'frozen' else 2e-5)
-    print(f'[AG-10] Learning rate: {lr}', flush=True)
+    print(f'[AG-10] Base Learning rate: {lr}', flush=True)
 
+    # Optimizer & Scheduler (AG-09, AG-10)
     optimizer = torch.optim.AdamW(
         (p for p in model.parameters() if p.requires_grad), lr=lr
     )
+    total_steps = len(batches) * epochs
+    warmup_steps = int(total_steps * warmup_ratio) if warmup_ratio > 0 else 0
+    scheduler = get_linear_schedule_with_warmup(
+        optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps
+    )
+    print(f'[AG-09] Total steps: {total_steps:,} | Warmup steps: {warmup_steps:,} ({warmup_ratio*100:.0f}%)', flush=True)
+
+    # GradScaler cho Mixed Precision (AG-11)
+    scaler = get_grad_scaler(device, enabled=amp_enabled)
 
     # Thư mục lưu checkpoint
     folder = ROOT / f'outputs/{mode}'
@@ -134,45 +182,83 @@ def train(mode='finetune', model_name='distilbert/distilbert-base-uncased', epoc
 
     best, history, start = -1.0, [], time.perf_counter()
 
-    for epoch in range(1, epochs + 1):
-        model.train()
-        if mode == 'frozen':
-            model.base_model.eval()  # encoder cố định, chỉ classifier huấn luyện
-
-        loss_sum = 0.0
-        for step, batch in enumerate(batches, 1):
-            optimizer.zero_grad(set_to_none=True)
-            output = model(**{k: v.to(device) for k, v in batch.items()})
-            output.loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            optimizer.step()
-            loss_sum += output.loss.item()
-            if step % 100 == 0:
-                print(
-                    f'epoch={epoch} batch={step}/{len(batches)} '
-                    f'avg_loss={loss_sum/step:.4f}',
-                    flush=True,
-                )
-
-        # Đánh giá trên validation sau mỗi epoch
+    # Hàm đánh giá & lưu checkpoint (AG-11, AG-12)
+    def run_evaluation(current_step, current_epoch, avg_train_loss):
+        nonlocal best
         y, pred = infer(model, valid_batches, device)
         from sklearn.metrics import f1_score as _f1
         score = _f1(y, pred, labels=range(4), average='macro', zero_division=0)
-        avg_loss = loss_sum / len(batches)
+        epoch_float = round(current_step / len(batches), 2)
         history.append({
-            'epoch': epoch,
-            'train_loss': round(avg_loss, 6),
+            'step': current_step,
+            'epoch': epoch_float,
+            'train_loss': round(avg_train_loss, 6),
             'validation_macro_f1': round(score, 6),
         })
-        print(f'[Epoch {epoch}] loss={avg_loss:.4f}  val_macro_f1={score:.4f}', flush=True)
+        print(f'\n  → [Eval @ step {current_step} | epoch {epoch_float}] '
+              f'train_loss={avg_train_loss:.4f}  val_macro_f1={score:.4f}', flush=True)
 
-        # Lưu checkpoint tốt nhất theo validation macro-F1
         if score > best:
             best = score
             model.save_pretrained(folder)
             tokenizer.save_pretrained(folder)
             report(y, pred, folder, 'validation')
-            print(f'  → Checkpoint mới tốt nhất (val_macro_f1={score:.4f})', flush=True)
+            print(f'    ★ Checkpoint mới tốt nhất! Đã lưu outputs/{mode} (val_macro_f1={score:.4f})', flush=True)
+        return score
+
+    global_step = 0
+    step_loss_sum = 0.0
+    steps_since_eval = 0
+
+    for epoch in range(1, epochs + 1):
+        model.train()
+        if mode == 'frozen':
+            model.base_model.eval()
+
+        epoch_loss_sum = 0.0
+        for step, batch in enumerate(batches, 1):
+            global_step += 1
+            steps_since_eval += 1
+            optimizer.zero_grad(set_to_none=True)
+
+            with get_autocast(device, enabled=amp_enabled):
+                output = model(**{k: v.to(device) for k, v in batch.items()})
+                loss = output.loss
+
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            scaler.step(optimizer)
+            scaler.update()
+            scheduler.step()
+
+            loss_val = loss.item()
+            epoch_loss_sum += loss_val
+            step_loss_sum += loss_val
+
+            if step % 100 == 0:
+                current_lr = scheduler.get_last_lr()[0] if scheduler else lr
+                print(
+                    f'epoch={epoch} batch={step}/{len(batches)} (step={global_step}/{total_steps}) '
+                    f'avg_loss={epoch_loss_sum/step:.4f} lr={current_lr:.2e}',
+                    flush=True,
+                )
+
+            # Đánh giá theo eval_steps nếu chỉ định (AG-11, AG-12)
+            if eval_steps and eval_steps > 0 and (global_step % eval_steps == 0) and (step < len(batches)):
+                avg_eval_loss = step_loss_sum / max(1, steps_since_eval)
+                run_evaluation(global_step, epoch, avg_eval_loss)
+                step_loss_sum = 0.0
+                steps_since_eval = 0
+                model.train()
+                if mode == 'frozen':
+                    model.base_model.eval()
+
+        # Đánh giá cuối mỗi epoch
+        avg_eval_loss = step_loss_sum / max(1, steps_since_eval)
+        run_evaluation(global_step, epoch, avg_eval_loss)
+        step_loss_sum = 0.0
+        steps_since_eval = 0
 
     elapsed = time.perf_counter() - start
 
@@ -187,6 +273,9 @@ def train(mode='finetune', model_name='distilbert/distilbert-base-uncased', epoc
         validation_n=len(valid_df),
         seed=42,
         learning_rate=lr,
+        warmup_ratio=warmup_ratio,
+        eval_steps=eval_steps,
+        use_amp=amp_enabled,
         device=str(device),
         total_parameters=total_params,
         trainable_parameters=trainable_params,
@@ -215,13 +304,15 @@ def compare_learning_rates(
     max_length=128,
     limit=5000,
     learning_rates=(2e-5, 5e-5),
+    eval_steps=500,
+    use_amp=True,
+    warmup_ratio=0.1,
 ):
     """AG-10: Thử nghiệm hai learning rate cho chế độ finetune.
 
     Giữ nguyên split, max_length và train limit giữa các lần chạy.
+    Áp dụng cùng Warmup Scheduler + AMP để đảm bảo so sánh công bằng.
     Chọn learning rate tốt hơn theo best_validation_macro_f1.
-    Lưu kết quả từng run vào outputs/finetune_lr{lr}/ và tổng hợp vào
-    outputs/lr_comparison.json.
     """
     results = {}
     for lr in learning_rates:
@@ -236,7 +327,8 @@ def compare_learning_rates(
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(42)
 
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        device = get_device()
+        amp_enabled = (device.type == 'cuda' and use_amp)
         train_df = read_split('train', limit)
         valid_df = read_split('validation')
 
@@ -252,38 +344,73 @@ def compare_learning_rates(
         batches = loader(train_df, tokenizer, batch_size, max_length, shuffle=True)
         valid_batches = loader(valid_df, tokenizer, batch_size, max_length)
 
+        total_steps = len(batches) * epochs
+        warmup_steps = int(total_steps * warmup_ratio)
+        scheduler = get_linear_schedule_with_warmup(
+            optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps
+        )
+        scaler = get_grad_scaler(device, enabled=amp_enabled)
+
         folder = ROOT / f'outputs/finetune_lr{lr_tag}'
         folder.mkdir(parents=True, exist_ok=True)
 
         best, history, start = -1.0, [], time.perf_counter()
 
-        for epoch in range(1, epochs + 1):
-            model.train()
-            loss_sum = 0.0
-            for step, batch in enumerate(batches, 1):
-                optimizer.zero_grad(set_to_none=True)
-                output = model(**{k: v.to(device) for k, v in batch.items()})
-                output.loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-                optimizer.step()
-                loss_sum += output.loss.item()
-
+        def run_eval(current_step, current_epoch, avg_train_loss):
+            nonlocal best
             y, pred = infer(model, valid_batches, device)
             from sklearn.metrics import f1_score as _f1
             score = _f1(y, pred, labels=range(4), average='macro', zero_division=0)
-            avg_loss = loss_sum / len(batches)
+            epoch_float = round(current_step / len(batches), 2)
             history.append({
-                'epoch': epoch,
-                'train_loss': round(avg_loss, 6),
+                'step': current_step,
+                'epoch': epoch_float,
+                'train_loss': round(avg_train_loss, 6),
                 'validation_macro_f1': round(score, 6),
             })
-            print(f'  [LR={lr}] Epoch {epoch}: loss={avg_loss:.4f}  val_macro_f1={score:.4f}')
-
+            print(f'  [LR={lr} | step {current_step}] loss={avg_train_loss:.4f}  val_macro_f1={score:.4f}')
             if score > best:
                 best = score
                 model.save_pretrained(folder)
                 tokenizer.save_pretrained(folder)
                 report(y, pred, folder, 'validation')
+            return score
+
+        global_step = 0
+        step_loss_sum = 0.0
+        steps_since_eval = 0
+
+        for epoch in range(1, epochs + 1):
+            model.train()
+            for step, batch in enumerate(batches, 1):
+                global_step += 1
+                steps_since_eval += 1
+                optimizer.zero_grad(set_to_none=True)
+
+                with get_autocast(device, enabled=amp_enabled):
+                    output = model(**{k: v.to(device) for k, v in batch.items()})
+                    loss = output.loss
+
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                scaler.step(optimizer)
+                scaler.update()
+                scheduler.step()
+
+                loss_val = loss.item()
+                step_loss_sum += loss_val
+
+                if eval_steps and eval_steps > 0 and (global_step % eval_steps == 0) and (step < len(batches)):
+                    run_eval(global_step, epoch, step_loss_sum / max(1, steps_since_eval))
+                    step_loss_sum = 0.0
+                    steps_since_eval = 0
+                    model.train()
+
+            # Cuối epoch
+            run_eval(global_step, epoch, step_loss_sum / max(1, steps_since_eval))
+            step_loss_sum = 0.0
+            steps_since_eval = 0
 
         elapsed = time.perf_counter() - start
         run_config = dict(
@@ -296,6 +423,9 @@ def compare_learning_rates(
             limit=limit,
             seed=42,
             learning_rate=lr,
+            warmup_ratio=warmup_ratio,
+            eval_steps=eval_steps,
+            use_amp=amp_enabled,
             device=str(device),
             trainable_parameters=sum(p.numel() for p in model.parameters() if p.requires_grad),
             elapsed_seconds=round(elapsed, 2),
@@ -330,15 +460,15 @@ def compare_learning_rates(
 
 
 # ---------------------------------------------------------------------------
-# AG-12: Vẽ đồ thị loss và validation macro-F1 theo epoch
+# AG-12: Vẽ đồ thị loss và validation macro-F1 theo step / epoch
 # ---------------------------------------------------------------------------
 
 def plot_training_history(folder):
     """AG-12: Đọc run.json trong folder, vẽ đồ thị loss và val macro-F1.
 
     Lưu hai hình vào folder:
-    - training_loss.png: train loss theo epoch.
-    - validation_f1.png: validation macro-F1 theo epoch.
+    - training_loss.png: train loss theo step/epoch.
+    - validation_f1.png: validation macro-F1 theo step/epoch.
     - training_summary.png: hình tổng hợp 2 trục cạnh nhau.
 
     Nhận xét hội tụ được in ra stdout và ghi vào training_analysis.md.
@@ -354,36 +484,39 @@ def plot_training_history(folder):
         print('[AG-12] history rỗng trong run.json. Bỏ qua vẽ đồ thị.')
         return
 
-    epochs = [h['epoch'] for h in history]
+    has_steps = 'step' in history[0]
+    x_vals = [h['step'] if has_steps else h['epoch'] for h in history]
+    x_label = 'Optimization Step' if has_steps else 'Epoch'
+
     losses = [h['train_loss'] for h in history]
     f1s = [h['validation_macro_f1'] for h in history]
 
     mode = config.get('mode', 'finetune')
     lr = config.get('learning_rate', 'N/A')
     best_f1 = config.get('best_validation_macro_f1', max(f1s))
-    best_epoch = f1s.index(best_f1) + 1 if best_f1 in f1s else '?'
+    best_idx = f1s.index(best_f1) if best_f1 in f1s else 0
+    best_x = x_vals[best_idx]
+    best_epoch = history[best_idx].get('epoch', '?')
 
     # --- Hình tổng hợp ---
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-    fig.suptitle(f'DistilBERT Fine-tuning ({mode}) | LR={lr}', fontsize=13)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
+    fig.suptitle(f'DistilBERT ({mode}) | LR={lr} | Best F1={best_f1:.4f}', fontsize=13)
 
     # Trục 1: Train Loss
-    ax1.plot(epochs, losses, marker='o', color='steelblue', linewidth=2, label='Train loss')
-    ax1.set_xlabel('Epoch')
+    ax1.plot(x_vals, losses, marker='o', markersize=4, color='steelblue', linewidth=2, label='Train loss')
+    ax1.set_xlabel(x_label)
     ax1.set_ylabel('Cross-Entropy Loss')
-    ax1.set_title('Train Loss theo Epoch')
-    ax1.set_xticks(epochs)
+    ax1.set_title(f'Train Loss theo {x_label}')
     ax1.legend()
     ax1.grid(True, alpha=0.3)
 
     # Trục 2: Validation Macro-F1
-    ax2.plot(epochs, f1s, marker='s', color='darkorange', linewidth=2, label='Val macro-F1')
-    ax2.axvline(x=best_epoch, color='red', linestyle='--', alpha=0.6,
-                label=f'Best epoch={best_epoch} (F1={best_f1:.4f})')
-    ax2.set_xlabel('Epoch')
+    ax2.plot(x_vals, f1s, marker='s', markersize=4, color='darkorange', linewidth=2, label='Val macro-F1')
+    ax2.axvline(x=best_x, color='red', linestyle='--', alpha=0.6,
+                label=f'Best @ {best_x} (F1={best_f1:.4f})')
+    ax2.set_xlabel(x_label)
     ax2.set_ylabel('Macro F1')
-    ax2.set_title('Validation Macro-F1 theo Epoch')
-    ax2.set_xticks(epochs)
+    ax2.set_title(f'Validation Macro-F1 theo {x_label}')
     ax2.set_ylim(0, 1)
     ax2.legend()
     ax2.grid(True, alpha=0.3)
@@ -409,40 +542,44 @@ def plot_training_history(folder):
         '## Thông tin thực nghiệm',
         f'- Mode: `{mode}`',
         f'- Learning rate: `{lr}`',
-        f'- Số epoch: `{len(epochs)}`',
+        f'- Số epoch: `{config.get("epochs", "N/A")}`',
         f'- Batch size: `{config.get("batch_size", "N/A")}`',
         f'- Max length: `{config.get("max_length", "N/A")}`',
+        f'- Warmup ratio: `{config.get("warmup_ratio", "N/A")}`',
+        f'- Eval steps: `{config.get("eval_steps", "N/A")}`',
+        f'- Mixed Precision (AMP): `{config.get("use_amp", "N/A")}`',
         f'- Số mẫu train: `{config.get("train_n", "N/A")}`',
         f'- Thiết bị: `{config.get("device", "N/A")}`',
         f'- Số tham số huấn luyện: `{config.get("trainable_parameters", "N/A"):,}`',
         f'- Thời gian huấn luyện: `{config.get("elapsed_seconds", "N/A"):.1f}s`',
         '',
-        '## Lịch sử huấn luyện',
+        '## Lịch sử đánh giá',
         '',
-        '| Epoch | Train Loss | Validation Macro-F1 |',
-        '|------:|----------:|--------------------:|',
+        '| Step | Epoch | Train Loss | Validation Macro-F1 |',
+        '|-----:|------:|----------:|--------------------:|',
     ]
     for h in history:
-        lines.append(f'| {h["epoch"]} | {h["train_loss"]:.4f} | {h["validation_macro_f1"]:.4f} |')
+        step_val = h.get('step', '-')
+        lines.append(f'| {step_val} | {h["epoch"]} | {h["train_loss"]:.4f} | {h["validation_macro_f1"]:.4f} |')
 
     lines += [
         '',
         '## Nhận xét hội tụ',
         '',
         f'- Loss giảm từ `{losses[0]:.4f}` xuống `{losses[-1]:.4f}` '
-        f'(giảm `{loss_drop:.4f}` qua {len(epochs)} epoch).',
-        f'- Validation macro-F1 đạt cao nhất `{best_f1:.4f}` tại epoch `{best_epoch}`.',
+        f'(giảm `{loss_drop:.4f}` qua {len(x_vals)} mốc đánh giá).',
+        f'- Validation macro-F1 đạt cao nhất `{best_f1:.4f}` tại {x_label} `{best_x}` (Epoch {best_epoch}).',
     ]
 
     if is_converging:
-        lines.append('- **Mô hình đang hội tụ tốt**: loss giảm đều, F1 tăng.')
+        lines.append('- **Mô hình đang hội tụ tốt**: loss giảm đều, F1 duy trì đà tăng/ổn định.')
     else:
         lines.append('- **Chú ý**: loss hoặc F1 chưa cải thiện ổn định, cần kiểm tra lại cấu hình.')
 
     if stagnant:
         lines.append(
-            f'- Hai epoch cuối F1 thay đổi rất ít (`Δ={last_delta:.4f}`). '
-            'Mô hình có thể đã bão hòa – xem xét dừng sớm (early stopping).'
+            f'- Các mốc cuối F1 thay đổi rất ít (`Δ={last_delta:.4f}`). '
+            'Mô hình có thể đã bão hòa – việc sử dụng checkpoint tốt nhất giúp tránh overfitting.'
         )
 
     lines += [
@@ -451,8 +588,7 @@ def plot_training_history(folder):
         '',
         'Fine-tuning toàn bộ encoder cho phép mô hình điều chỉnh cả lớp Attention, '
         'không chỉ classification head. Kỳ vọng validation macro-F1 cao hơn frozen encoder '
-        '(~87%) khi huấn luyện đủ epoch, nhưng chi phí tính toán và nguy cơ overfitting '
-        'cũng lớn hơn. Nên so sánh với kết quả TV2 sau khi cả hai hoàn thành.',
+        '(~87%) khi huấn luyện đủ epoch, nhờ kỹ thuật Linear Warmup Scheduler giúp ổn định trọng số pre-trained.',
         '',
         '## Đồ thị',
         '',
@@ -463,8 +599,6 @@ def plot_training_history(folder):
     (folder / 'training_analysis.md').write_text(analysis_text, encoding='utf-8')
     print(f'\n[AG-12] Đã lưu đồ thị: {folder}/training_summary.png')
     print(f'[AG-12] Đã lưu phân tích: {folder}/training_analysis.md')
-    print(f'[AG-12] Best val macro-F1={best_f1:.4f} tại epoch={best_epoch}')
-    if stagnant:
-        print(f'[AG-12] Lưu ý: F1 bão hòa ở 2 epoch cuối (Δ={last_delta:.4f}).')
+    print(f'[AG-12] Best val macro-F1={best_f1:.4f} tại {x_label}={best_x} (Epoch {best_epoch})')
 
     return analysis_text

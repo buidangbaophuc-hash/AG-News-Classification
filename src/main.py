@@ -18,6 +18,9 @@ def main():
     t.add_argument('--max-length', type=int, default=128)
     t.add_argument('--limit', type=int, default=0)
     t.add_argument('--learning-rate', type=float)
+    t.add_argument('--eval-steps', type=int, default=1500, help='Tần suất đánh giá và lưu checkpoint (số batch)')
+    t.add_argument('--no-amp', action='store_true', help='Tắt Automatic Mixed Precision (AMP - FP16)')
+    t.add_argument('--warmup-ratio', type=float, default=0.1, help='Tỷ lệ warmup steps cho scheduler (mặc định 0.1 = 10%)')
     e = sub.add_parser('evaluate')
     e.add_argument('--run', choices=['baseline', 'frozen', 'finetune'], required=True)
     e.add_argument('--split', choices=['validation', 'test'], default='test')
@@ -37,7 +40,10 @@ def main():
         if min(args.epochs, args.batch_size, args.max_length) < 1:
             parser.error('epochs, batch-size and max-length must be positive')
         from .transformer import train
-        train(**{k:v for k,v in vars(args).items() if k != 'command'})
+        kwargs = {k: v for k, v in vars(args).items() if k not in ['command', 'no_amp']}
+        if hasattr(args, 'no_amp'):
+            kwargs['use_amp'] = not args.no_amp
+        train(**kwargs)
     elif args.command in ['evaluate', 'predict']:
         folder = ROOT/f'outputs/{args.run}'
         df = read_split(args.split) if args.command == 'evaluate' else pd.DataFrame({'text': [clean_text(args.text)], 'label': [0]})
@@ -50,9 +56,9 @@ def main():
         else:
             import torch
             from transformers import AutoTokenizer, AutoModelForSequenceClassification
-            from .transformer import loader, infer
+            from .transformer import loader, infer, get_device
             settings = json.loads((folder/'run.json').read_text())
-            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            device = get_device()
             model = AutoModelForSequenceClassification.from_pretrained(folder).to(device)
             tokenizer = AutoTokenizer.from_pretrained(folder)
             _, pred = infer(model, loader(df, tokenizer, max_length=settings['max_length']), device)
