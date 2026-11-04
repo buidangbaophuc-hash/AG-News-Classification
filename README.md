@@ -364,7 +364,21 @@ Gói project ban đầu không kèm model Transformer đã huấn luyện. Tình
 - Mỗi người viết phần phương pháp/kết quả của mình; TV5 tổng hợp báo cáo và điều phối demo.
 - Không commit .venv, dữ liệu hoặc model theo mặc định; cung cấp dữ liệu riêng cho thành viên và kiểm tra điều khoản nguồn trước khi phân phối công khai.
 
-## 6. Tài liệu tham khảo
+## 6. Roadmap – Lộ trình phát triển
+
+Lộ trình bám theo các mốc ở mục 2.6 và [bảng phân công](docs/PHAN_CONG.md). Tuần 1–3 tính từ ngày nhóm thống nhất bắt đầu; các đầu ra dưới đây là mục tiêu bàn giao của từng giai đoạn.
+
+| Giai đoạn | Thời gian | Task | Phụ trách | Đầu ra cần bàn giao |
+|---|---|---|---|---|
+| Chuẩn bị dữ liệu, baseline và đánh giá | Tuần 1 | AG-01–AG-05, AG-13 | TV1, TV2, TV4 | Audit/EDA, train/validation/test không giao nhau, baseline, module metrics và kiểm thử đánh giá |
+| Huấn luyện và chọn cấu hình | Tuần 2 | AG-06–AG-07, AG-09–AG-11, AG-17 | TV2, TV3, TV5 | Frozen và fine-tuning, checkpoint tốt nhất theo validation macro-F1, cấu hình từng run, thông tin tài nguyên và CLI tích hợp |
+| Đánh giá cuối, phân tích và kiểm thử | Tuần 3 | AG-08, AG-12, AG-14–AG-16 | TV2, TV3, TV4 | Giải thích phương pháp, đồ thị học, metrics/confusion matrix trên test, comparison.csv, ít nhất 20 mẫu sai và kiểm thử pipeline |
+| Demo và bàn giao | Tuần 3 | AG-18–AG-20 | TV5; cả nhóm phối hợp | Demo ít nhất 8 tin thuộc bốn chủ đề, báo cáo, 10–12 slide và kiểm chứng chạy lại theo README |
+
+**Thứ tự phụ thuộc:** thống nhất dữ liệu và cách chia tập → huấn luyện → chốt cấu hình bằng validation → đánh giá test và so sánh → phân tích lỗi → hoàn thiện demo, báo cáo và slide. Chỉ đánh giá test sau khi chốt cấu hình; không dùng test để điều chỉnh siêu tham số.
+
+
+## 7. Tài liệu tham khảo
 
 - [Hugging Face – Text classification](https://huggingface.co/docs/transformers/tasks/sequence_classification)
 - [Hugging Face – Auto classes](https://huggingface.co/docs/transformers/model_doc/auto)
