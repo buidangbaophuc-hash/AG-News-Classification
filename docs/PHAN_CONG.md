@@ -6,7 +6,7 @@ Tên TV1–TV5 là chỗ trống để thay bằng tên thật. “Tag” dùng 
 |---|---|---|---|
 | Nguyễn Hoàng Minh Nhựt | Dữ liệu và EDA | AG-01 → AG-04 | src/data.py, tests/test_data.py |
 | Bùi Đặng Bảo Phúc | Baseline và frozen encoder | AG-05 → AG-08 | src/baseline.py; phối hợp src/transformer.py |
-| TV3 | Fine-tuning và tối ưu | AG-09 → AG-12 | src/transformer.py |
+| Trần Đức Lĩnh | Fine-tuning và tối ưu | AG-09 → AG-12 | src/transformer.py |
 | Nguyễn Đình Trí| Đánh giá, phân tích lỗi và kiểm thử | AG-13 → AG-16 | src/metrics.py, outputs/, tests/ |
 | TV5 | Tích hợp, demo, báo cáo và thuyết trình | AG-17 → AG-20 | src/main.py, README.md, docs/ |
 
@@ -22,10 +22,10 @@ Tên TV1–TV5 là chỗ trống để thay bằng tên thật. “Tag” dùng 
 | AG-06 | TV2 | #frozen | Huấn luyện frozen encoder | Chạy --mode frozen; kiểm tra encoder requires_grad=False và eval() | AG-03 | Tuần 2 |
 | AG-07 | TV2 | #experiment | Chọn learning rate frozen | Thử 1e-3 và 5e-4; chọn bằng validation macro-F1; lưu riêng từng run | AG-06 | Tuần 2 |
 | AG-08 | TV2 | #analysis | Giải thích baseline và frozen | Viết phương pháp, số tham số huấn luyện và hạn chế | AG-05; AG-07 | Tuần 3 |
-| AG-09 | TV3 | #finetuning | Fine-tuning DistilBERT | Chạy --mode finetune; encoder được cập nhật; lưu best validation checkpoint | AG-03 | Tuần 2 |
-| AG-10 | TV3 | #experiment | Chọn learning rate fine-tuning | Thử 2e-5 và 5e-5; giữ cùng split, max_length và train limit | AG-09 | Tuần 2 |
-| AG-11 | TV3 | #optimization | Kiểm tra bộ nhớ và thời gian | Ghi thiết bị, batch size, số tham số, thời gian; giảm batch khi OOM | AG-09 | Tuần 2 |
-| AG-12 | TV3 | #analysis | Giải thích fine-tuning | Vẽ loss/validation-F1 từ run.json, nhận xét hội tụ | AG-10 | Tuần 3 |
+| AG-09 | Trần Đức Lĩnh | #finetuning | Fine-tuning DistilBERT | Chạy --mode finetune; encoder được cập nhật; lưu best validation checkpoint | AG-03 | Tuần 2 |
+| AG-10 | Trần Đức Lĩnh | #experiment | Chọn learning rate fine-tuning | Thử 2e-5 và 5e-5; giữ cùng split, max_length và train limit | AG-09 | Tuần 2 |
+| AG-11 | Trần Đức Lĩnh | #optimization | Kiểm tra bộ nhớ và thời gian | Ghi thiết bị, batch size, số tham số, thời gian; giảm batch khi OOM | AG-09 | Tuần 2 |
+| AG-12 | Trần Đức Lĩnh | #analysis | Giải thích fine-tuning | Vẽ loss/validation-F1 từ run.json, nhận xét hội tụ | AG-10 | Tuần 3 |
 | AG-13 | TV4 | #evaluation | Chuẩn hóa đánh giá | Accuracy, macro-F1, per-class P/R/F1, confusion matrix thứ tự 0..3 | AG-03 | Tuần 1 |
 | AG-14 | TV4 | #comparison | Đánh giá test và so sánh | Chỉ đánh giá test sau khi chốt cấu hình; tạo comparison.csv | AG-07; AG-10; AG-13 | Tuần 3 |
 | AG-15 | TV4 | #error-analysis | Phân tích lỗi | Chọn ít nhất 20 mẫu sai từ test_predictions.csv, nhóm nguyên nhân | AG-14 | Tuần 3 |
@@ -54,7 +54,7 @@ Fine-tuning toàn bộ DistilBERT có cải thiện macro-F1 so với đóng bă
 1. Bài toán, mục tiêu và dữ liệu (TV1).
 2. Tiền xử lý, EDA và chia tập (TV1).
 3. TF-IDF và frozen encoder (TV2).
-4. Fine-tuning và cấu hình thực nghiệm (TV3).
+4. Fine-tuning và cấu hình thực nghiệm (Trần Đức Lĩnh).
 5. Bảng kết quả, confusion matrix và phân tích lỗi (TV4).
 6. Demo, kết luận, hạn chế, hướng phát triển và đóng góp (TV5 tổng hợp).
 
