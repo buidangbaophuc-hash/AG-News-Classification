@@ -128,7 +128,7 @@ siêu tham số. Khi đánh giá thật, dùng cùng mapping và tập dữ li�
 ghi lại cấu hình cùng nguồn nhãn thật/dự đoán, lưu kết quả riêng cho từng run.
 
 Phần có thể làm ngay là AG-13 và kiểm thử đánh giá độc lập. Kiểm thử chống giao
-dữ liệu chờ TV1 bàn giao các tập đã xử lý. Kiểm thử tải lại model và dự đoán
+dữ liệu sử dụng các tập trong `data/processed/` do TV1 chuẩn bị. Kiểm thử tải lại model và dự đoán
 bốn chủ đề trong AG-16 chờ TV2/TV3 bàn giao model/checkpoint, tokenizer (với
 Transformer), `run.json` và cấu hình đã chốt. AG-14 so sánh mô hình và AG-15
 phân tích lỗi thực tế chờ kết quả dự đoán thật; chưa thực hiện trong phạm vi này.

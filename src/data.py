@@ -23,16 +23,29 @@ def load_raw(path):
         raise ValueError('Empty article')
     return pd.DataFrame({'text': text, 'label': df['Class Index'].astype(int)-1})
 
-def prepare(seed=42):
-    out = ROOT/'data/processed'
-    out.mkdir(parents=True, exist_ok=True)
-    train = load_raw(ROOT/'data/raw/train.csv')
-    test = load_raw(ROOT/'data/raw/test.csv')
+def load_and_preprocess_data(train_path=ROOT/'data/raw/train.csv',
+                             test_path=ROOT/'data/raw/test.csv',
+                             val_size=0.1, random_state=42):
+    """Load, normalize and split raw data using the shared leakage policy.
+
+    Return train, validation and test frames with text and integer labels 0..3.
+    This function does not write files or fit a model.
+    """
+    train = load_raw(train_path)
+    test = load_raw(test_path)
     # Fixed policy: first occurrence wins; no test texts enter training/validation.
     test = test.drop_duplicates('text').reset_index(drop=True)
     train = train.drop_duplicates('text')
     train = train[~train.text.isin(test.text)]
-    train, valid = train_test_split(train, test_size=.1, stratify=train.label, random_state=seed)
+    train, valid = train_test_split(train, test_size=val_size, stratify=train.label,
+                                   random_state=random_state)
+    return train.reset_index(drop=True), valid.reset_index(drop=True), test
+
+
+def prepare(seed=42):
+    train, valid, test = load_and_preprocess_data(random_state=seed)
+    out = ROOT/'data/processed'
+    out.mkdir(parents=True, exist_ok=True)
     for name, df in [('train', train), ('validation', valid), ('test', test)]:
         df.to_csv(out/f'{name}.csv', index=False)
         print(name, len(df), df.label.value_counts().sort_index().to_dict())

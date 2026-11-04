@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # AG News – News Topic Classification
 
 Dự án phân loại chủ đề tin tức tiếng Anh bằng Python, sử dụng bộ dữ liệu AG News. Nhóm gồm 5 thành viên, so sánh DistilBERT theo hai phương pháp: **fine-tuning toàn bộ mô hình** và **đóng băng encoder (frozen encoder)**. TF-IDF kết hợp Logistic Regression được dùng làm baseline.
@@ -135,11 +134,13 @@ Sơ đồ thể hiện quan hệ giữa các thành phần. Vai trò riêng củ
 | Module | Trách nhiệm | Giao diện chính | Chủ trì |
 |---|---|---|---|
 | `src/data.py` | Đọc CSV, chuẩn hóa, mapping, chia tập | `load_raw`, `clean_text`, `prepare`, `read_split` | TV1 |
+| `src/dataset.py` | Giữ tương thích import cũ; dùng chung xử lý trong `src/data.py` | `load_and_preprocess_data` | TV1 |
 | `src/baseline.py` | Fit TF-IDF và Logistic Regression, lưu pipeline | `train(limit)` | TV2 |
 | `src/transformer.py` | Tokenize, tạo DataLoader, train và suy luận hai chế độ | `NewsDataset`, `loader`, `train`, `infer` | TV3; TV2 phối hợp frozen |
 | `src/metrics.py` | Tính chỉ số và xuất confusion matrix | `report(y, pred, folder, split)` | TV4 |
 | `src/main.py` | Phân tích tham số CLI và điều phối | `main()` | TV5 |
 | `tests/test_data.py` | Kiểm tra hợp đồng dữ liệu và giao nhau giữa các tập | unittest | TV1 và TV4 |
+| `tests/test_metrics.py` | Kiểm tra chỉ số, đầu vào và file JSON/PNG bằng nhãn mẫu | unittest | TV4 |
 
 Tên TV1–TV5 là chỗ giữ chỗ để thay bằng tên thành viên thật. TV3 giữ module Transformer chung; TV2 gửi phần thay đổi frozen qua pull request để hạn chế xung đột.
 
@@ -150,6 +151,7 @@ Các đường dẫn dưới đây tính từ thư mục gốc repository, nơi 
 ```text
 ./                                      # Thư mục gốc AG-News-Classification
 ├── README.md                           # Define, Design và hướng dẫn chạy
+├── main.py                             # Chuyển lệnh sang CLI chung trong src/main.py
 ├── requirements.txt                    # Thư viện cho toàn bộ pipeline
 ├── requirements-baseline.txt           # Thư viện riêng cho baseline CPU
 ├── .gitignore                          # Bỏ qua môi trường, dữ liệu và kết quả khi commit
@@ -158,14 +160,18 @@ Các đường dẫn dưới đây tính từ thư mục gốc repository, nơi 
 │   ├── __init__.py                     # Khai báo Python package
 │   ├── main.py                         # Entry point CLI; điều phối các lệnh
 │   ├── data.py                         # Đọc CSV, làm sạch, mapping nhãn, chia tập
+│   ├── dataset.py                      # Import tương thích; không có pipeline dữ liệu riêng
 │   ├── baseline.py                     # TF-IDF + Logistic Regression
 │   ├── transformer.py                  # DistilBERT: frozen encoder và fine-tuning
 │   └── metrics.py                      # Metrics JSON và confusion matrix PNG
 │                                       
 ├── data/                               # Dữ liệu cục bộ; không commit mặc định
 │   ├── raw/                            # Chép hai CSV gốc từ ZIP dữ liệu vào đây
+│   │   ├── README.md                   # Quy ước đặt dữ liệu gốc
 │   │   ├── train.csv                   # 120.000 mẫu huấn luyện gốc
-│   │   └── test.csv                    # 7.600 mẫu kiểm tra gốc
+│   │   ├── test.csv                    # 7.600 mẫu kiểm tra gốc
+│   │   ├── train.csv.zip               # ZIP nguồn cục bộ, nếu có
+│   │   └── test.csv.zip                # ZIP nguồn cục bộ, nếu có
 │   └── processed/                      # Được tạo bởi lệnh prepare
 │       ├── train.csv                   # Dữ liệu huấn luyện đã xử lý
 │       ├── validation.csv              # Chọn cấu hình và checkpoint
@@ -181,13 +187,23 @@ Các đường dẫn dưới đây tính từ thư mục gốc repository, nơi 
 │   │   └── run.json                    # Cấu hình, lịch sử loss/F1 và thời gian
 │   └── comparison.csv                  # Bảng so sánh test; tạo bởi lệnh compare
 │                                       
-├── tests/                              # Kiểm thử dữ liệu và pipeline
-│   └── test_data.py                    # Mapping nhãn, nhãn sai và giao text giữa tập
+├── scripts/                            # Công cụ audit và EDA
+│   ├── audit_data.py                   # Đọc dữ liệu gốc, ghi docs/data_audit.md
+│   └── eda.py                          # Đọc train/validation, ghi báo cáo và hình
+│
+├── tests/                              # Kiểm thử dữ liệu và đánh giá
+│   ├── test_data.py                    # Mapping, chuẩn hóa và không giao text giữa tập
+│   └── test_metrics.py                 # Chỉ số, nhãn sai và file JSON/PNG
 │                                       
 ├── docs/                               # Tài liệu và phân công nhóm
 │   ├── PHAN_CONG.md                    # 20 task cho 5 người, đầu ra và phụ thuộc
 │   ├── tasks.csv                       # Bảng task mở bằng Excel / nhập công cụ quản lý
 │   ├── VALIDATION.md                   # Ghi nhận kiểm chứng bộ mã khởi tạo
+│   ├── EVALUATION.md                   # Hợp đồng đánh giá và cách chạy kiểm thử
+│   ├── BASELINE_NOTES.md               # Ghi chú thành viên cần đối chiếu artifact
+│   ├── data_audit.md                   # Báo cáo dữ liệu gốc
+│   ├── eda.md                          # Báo cáo phân tích train/validation
+│   ├── figures/                       # Hình EDA được dùng trong tài liệu
 │   └── smoke_run/                      # Metrics/hình từ lần thử baseline 2.000 mẫu
 │                                       
 └── .venv/                              # Môi trường Python tự tạo; không commit
@@ -196,6 +212,8 @@ Các đường dẫn dưới đây tính từ thư mục gốc repository, nơi 
 Cây trên thể hiện cấu trúc sau khi chuẩn bị dữ liệu và chạy pipeline, không có nghĩa mọi đầu ra đã có sẵn. Phần `outputs/` chỉ liệt kê một số file tiêu biểu. Sau khi đánh giá, mỗi thư mục model còn có `{split}_metrics.json`, `{split}_confusion_matrix.png` và `{split}_predictions.csv`; thư mục Transformer chứa thêm các file checkpoint/tokenizer do `save_pretrained` tạo.
 
 Các thư mục đầu ra không cần tồn tại trước khi chạy. Nếu clone từ GitHub và thiếu CSV vì `.gitignore`, giải nén `train.csv` và `test.csv` từ bộ dữ liệu vào `data/raw/`.
+
+Chỉ giữ CSV và ZIP dữ liệu gốc trong `data/raw/`; không chép bản thứ hai ở thư mục gốc. Git bỏ qua các CSV/ZIP này, dữ liệu đã xử lý, model và kết quả trong `outputs/`. Các báo cáo, hình EDA và minh chứng chạy thử trong `docs/` được lưu cùng mã nguồn để nhóm review.
 
 ### 2.4. Data flow – Luồng dữ liệu
 
@@ -224,6 +242,8 @@ Dữ liệu gốc có 120.000 mẫu train và 7.600 mẫu test, cân bằng bố
 ### 2.5. Interfaces / APIs – Giao diện và hợp đồng dữ liệu
 
 Phiên bản này dùng **CLI**, chưa có REST API hoặc HTTP endpoint. Các lệnh được gọi bằng `python -m src.main ...` từ thư mục gốc.
+
+`python main.py ...` chuyển đến cùng CLI và nhận cùng các tham số. Ví dụ `python main.py --help` tương đương `python -m src.main --help`; chạy `main.py` không có lệnh con sẽ hiển thị lỗi thiếu lệnh, không tự huấn luyện. Mọi mô hình dùng mapping và split từ `src/data.py`; import cũ `src.dataset.load_and_preprocess_data` cũng dùng cùng chính sách chuẩn hóa, bỏ trùng và loại giao nhau.
 
 | Lệnh | Tham số chính | Đầu ra |
 |---|---|---|
@@ -340,12 +360,23 @@ Chọn model đã huấn luyện và lưu thành công:
 
 Nếu thiếu file CSV, kiểm tra data/raw rồi chạy prepare. Nếu thiếu model khi evaluate/predict, cần train đúng run trước. Bộ mã hiện chưa chuyển mọi lỗi file/dependency thành thông báo thân thiện; nhóm cần bổ sung trong bước hoàn thiện tích hợp.
 
+### 3.6. Audit, EDA và kiểm thử
+
+```powershell
+python scripts/audit_data.py
+python scripts/eda.py
+python -m unittest discover -s tests -v
+```
+
+Audit cần CSV trong `data/raw/`. EDA cần train/validation trong `data/processed/`, thư viện Transformers và tokenizer DistilBERT đã có trong cache hoặc có thể tải được. Hai script ghi báo cáo/hình trong `docs/`, không huấn luyện mô hình. Xem [EVALUATION.md](docs/EVALUATION.md) để chạy riêng kiểm thử metrics bằng nhãn mẫu.
+
 ## 4. Tình trạng triển khai và kiểm chứng
 
 | Hạng mục | Tình trạng của bộ mã khởi tạo |
 |---|---|
 | Prepare trên dữ liệu đính kèm | Đã chạy kiểm tra |
-| Kiểm thử mapping nhãn, nhãn sai và giao text giữa các tập | 3 kiểm thử đạt |
+| Kiểm thử dữ liệu | Có kiểm thử mapping, nhãn sai, chuẩn hóa, văn bản rỗng, loại trùng và không giao text; chạy lệnh ở mục 3.6 để xác nhận trên dữ liệu cục bộ |
+| AG-13 và kiểm thử đánh giá | Đã chuẩn hóa chỉ số trên đủ bốn lớp, có kiểm thử JSON/PNG bằng nhãn mẫu; nhãn mẫu không phải kết quả mô hình |
 | Baseline với 2.000 mẫu train | Đã chạy train, lưu/tải model, evaluate, predict và compare |
 | Baseline toàn bộ train | Chưa có kết quả đầy đủ trong lần kiểm chứng này |
 | Frozen và fine-tuning Transformer | Có mã; đã kiểm tra cú pháp, chưa kiểm chứng thực thi hoặc huấn luyện do môi trường tạo gói thiếu torch/transformers |
@@ -355,6 +386,8 @@ Nếu thiếu file CSV, kiểm tra data/raw rồi chạy prepare. Nếu thiếu 
 Lần kiểm tra baseline trên 2.000 mẫu train có Accuracy test khoảng 0,8495 và macro-F1 khoảng 0,8482 trên 7.600 mẫu test. Đây là kết quả **kiểm tra luồng chạy với tập train nhỏ**, không phải kết quả của Transformer hoặc baseline đầy đủ. Chi tiết có trong [VALIDATION.md](docs/VALIDATION.md).
 
 Gói project ban đầu không kèm model Transformer đã huấn luyện. Tình trạng trong tài liệu phải được cập nhật bằng kết quả thực tế khi nhóm hoàn thành thêm công việc; không ghi công việc dự kiến như đóng góp đã hoàn thành.
+
+Các ghi chú AG-05–AG-08 từ phần README chưa thống nhất được giữ tại [BASELINE_NOTES.md](docs/BASELINE_NOTES.md). Những số liệu trong ghi chú đó cần được đối chiếu với model, cấu hình và metrics từng run trước khi đưa vào bảng kết quả chính thức.
 
 ## 5. Quy trình làm việc nhóm
 
@@ -386,65 +419,3 @@ Lộ trình bám theo các mốc ở mục 2.6 và [bảng phân công](docs/PHA
 - [DistilBERT checkpoint](https://huggingface.co/distilbert/distilbert-base-uncased)
 - [PyTorch documentation](https://pytorch.org/docs/stable/index.html)
 - Dữ liệu thực nghiệm: train.csv và test.csv từ archive.zip được cung cấp cho nhóm. Nhóm cần ghi bổ sung URL nguồn gốc và điều khoản sử dụng sau khi xác minh nguồn của bản dữ liệu.
-=======
-# AG News Text Classification Project
-
-Đồ án phân loại tin tức tiếng Anh trên tập dữ liệu AG News thành 4 chủ đề: World, Sports, Business, và Sci/Tech. 
-
-Dự án được xây dựng và so sánh giữa hai tiếp cận: mô hình học máy truyền thống (Baseline) và mô hình học sâu (Deep Learning).
-
-## 1. Cấu trúc thư mục
-
-- `main.py`: Mã nguồn huấn luyện mô hình Baseline (TF-IDF + Logistic Regression).
-- `bert_model.py`: Mã nguồn fine-tuning mô hình DistilBERT.
-- `ag_news_classification.ipynb`: Notebook chạy thực nghiệm và phân tích dữ liệu.
-- `train.csv`, `test.csv`: Tập dữ liệu huấn luyện và kiểm thử.
-- `requirements.txt`: Danh sách các thư viện Python cần dùng.
-
-## 2. Kết quả thực nghiệm
-
-Sau khi thử nghiệm trên tập test (7,600 mẫu), kết quả thu được như sau:
-
-- Logistic Regression (TF-IDF): Đạt độ chính xác khoảng 92.0%. Thời gian chạy nhanh, tốn ít tài nguyên.
-- DistilBERT: Đạt độ chính xác khoảng 94.5%. Mô hình hiểu ngữ cảnh tốt hơn nhưng thời gian huấn luyện lâu hơn.
-
-## 3. Hướng dẫn chạy code
-
-Cài đặt các thư viện phụ thuộc:
-pip install -r requirements.txt
-
-Chạy mô hình Baseline:
-python main.py
-
-Chạy mô hình Deep Learning:
-python bert_model.py
-
-## 4. Thành viên thực hiện
-
-- buidangbaophuc-hash
-## Báo cáo Thực nghiệm & Phân tích (AG-05 đến AG-08)
-
-### 1. Bảng tổng hợp kết quả
-
-| Task | Mô hình / Hướng tiếp cận | Cấu hình / Hyperparameters | Tập dữ liệu | Validation Accuracy | Validation Macro F1 |
-| :--- | :--- | :--- | :---: | :---: | :---: |
-| **AG-05** | Baseline (TF-IDF + Logistic Regression) | Max Features = 10k | 120,000 mẫu | **0.9147** | **0.9145** |
-| **AG-06 / AG-07** | Frozen DistilBERT Encoder + Linear Head | Learning Rate = 1e-3 | 5,000 mẫu (Subsample) | **0.8703** | **0.8705** |
-| **AG-07** | Frozen DistilBERT Encoder + Linear Head | Learning Rate = 5e-4 | 5,000 mẫu (Subsample) | **0.8645** | **0.8641** |
-
----
-
-### 2. Phân tích chi tiết (AG-08)
-
-* **So sánh Learning Rate (AG-07)**:
-  * Mức `LR = 1e-3` đạt hiệu năng nhỉnh hơn `LR = 5e-4` ở cả Accuracy (87.03% vs 86.45%) và Macro F1 (0.8705 vs 0.8641).
-  * *Giải thích*: Do phần Transformer Encoder (DistilBERT) đã bị đóng băng (`requires_grad = False`), hệ thống chỉ tối ưu duy nhất lớp `Linear Classifier`. Tốc độ học `1e-3` giúp lớp phân loại hội tụ nhanh hơn trong số lượng epoch ngắn.
-
-* **So sánh Baseline TF-IDF vs. Frozen Transformer**:
-  * Baseline TF-IDF + Logistic Regression đạt kết quả cao hơn (~91.47%) nhờ được huấn luyện trên **toàn bộ 120,000 mẫu**.
-  * Frozen DistilBERT chỉ dùng **5,000 mẫu ngẫu nhiên** (~4% dữ liệu train gốc) nhưng đạt ngay **87.05% Macro F1**, thể hiện khả năng trích xuất đặc trưng ngữ nghĩa (semantic representations) rất mạnh của mô hình pretrained.
-
-* **Chi phí tính toán**:
-  * TF-IDF chạy siêu nhanh trên CPU (vài giây).
-  * DistilBERT cần GPU (T4 Colab) để trích xuất embeddings qua các tầng Attention.
->>>>>>> d33fe9464aadb473ce7f101e992265149f1971ec
