@@ -4,4 +4,19 @@ __pycache__/
 data/raw/*.csv
 data/raw/*.zip
 data/processed/
-outputs/
+
+# Model weights (chia sẻ qua Drive; không commit)
+outputs/**/*.safetensors
+outputs/**/*.bin
+outputs/**/tokenizer.json
+outputs/**/tokenizer_config.json
+outputs/**/special_tokens_map.json
+outputs/**/vocab.txt
+outputs/**/config.json
+outputs/**/*.pkl
+
+# Giữ lại metadata và hình ảnh (commit được)
+!outputs/**/*.png
+!outputs/**/*.json
+!outputs/**/*.csv
+!outputs/**/*.md
