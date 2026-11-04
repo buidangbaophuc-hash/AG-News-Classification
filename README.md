@@ -34,3 +34,28 @@ python bert_model.py
 
 - Cuong-Anime
 - buidangbaophuc-hash
+## Báo cáo Thực nghiệm & Phân tích (AG-05 đến AG-08)
+
+### 1. Bảng tổng hợp kết quả
+
+| Task | Mô hình / Hướng tiếp cận | Cấu hình / Hyperparameters | Tập dữ liệu | Validation Accuracy | Validation Macro F1 |
+| :--- | :--- | :--- | :---: | :---: | :---: |
+| **AG-05** | Baseline (TF-IDF + Logistic Regression) | Max Features = 10k | 120,000 mẫu | **0.9147** | **0.9145** |
+| **AG-06 / AG-07** | Frozen DistilBERT Encoder + Linear Head | Learning Rate = 1e-3 | 5,000 mẫu (Subsample) | **0.8703** | **0.8705** |
+| **AG-07** | Frozen DistilBERT Encoder + Linear Head | Learning Rate = 5e-4 | 5,000 mẫu (Subsample) | **0.8645** | **0.8641** |
+
+---
+
+### 2. Phân tích chi tiết (AG-08)
+
+* **So sánh Learning Rate (AG-07)**:
+  * Mức `LR = 1e-3` đạt hiệu năng nhỉnh hơn `LR = 5e-4` ở cả Accuracy (87.03% vs 86.45%) và Macro F1 (0.8705 vs 0.8641).
+  * *Giải thích*: Do phần Transformer Encoder (DistilBERT) đã bị đóng băng (`requires_grad = False`), hệ thống chỉ tối ưu duy nhất lớp `Linear Classifier`. Tốc độ học `1e-3` giúp lớp phân loại hội tụ nhanh hơn trong số lượng epoch ngắn.
+
+* **So sánh Baseline TF-IDF vs. Frozen Transformer**:
+  * Baseline TF-IDF + Logistic Regression đạt kết quả cao hơn (~91.47%) nhờ được huấn luyện trên **toàn bộ 120,000 mẫu**.
+  * Frozen DistilBERT chỉ dùng **5,000 mẫu ngẫu nhiên** (~4% dữ liệu train gốc) nhưng đạt ngay **87.05% Macro F1**, thể hiện khả năng trích xuất đặc trưng ngữ nghĩa (semantic representations) rất mạnh của mô hình pretrained.
+
+* **Chi phí tính toán**:
+  * TF-IDF chạy siêu nhanh trên CPU (vài giây).
+  * DistilBERT cần GPU (T4 Colab) để trích xuất embeddings qua các tầng Attention.
