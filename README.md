@@ -32,7 +32,6 @@ python bert_model.py
 
 ## 4. Thành viên thực hiện
 
-- Cuong-Anime
 - buidangbaophuc-hash
 ## Báo cáo Thực nghiệm & Phân tích (AG-05 đến AG-08)
 
