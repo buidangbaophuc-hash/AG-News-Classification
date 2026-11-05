@@ -11,12 +11,17 @@ AG-12: Hỗ trợ eval_steps (1000-2000 steps) để bắt đỉnh F1 sớm; v�
 import json
 import random
 import time
+import math
+import platform
+from importlib.metadata import version
+from pathlib import Path
 import numpy as np
 import torch
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset, DataLoader
+from transformers.modeling_outputs import SequenceClassifierOutput
 from transformers import (
     AutoTokenizer,
     AutoModelForSequenceClassification,
@@ -25,6 +30,53 @@ from transformers import (
 )
 from .data import ROOT, LABELS, read_split
 from .metrics import report
+from .evaluation import dataset_hash
+
+_FROZEN_FEATURE_CACHE = {}
+
+
+class FrozenHead(torch.nn.Module):
+    """The original DistilBERT head applied to deterministic cached CLS states."""
+
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+    def forward(self, features, labels=None):
+        hidden = torch.nn.functional.relu(self.model.pre_classifier(features))
+        logits = self.model.classifier(self.model.dropout(hidden))
+        loss = None if labels is None else torch.nn.functional.cross_entropy(logits, labels)
+        return SequenceClassifierOutput(loss=loss, logits=logits)
+
+
+class FeatureDataset(Dataset):
+    def __init__(self, features, labels):
+        self.features, self.labels = features, labels
+
+    def __len__(self):
+        return len(self.labels)
+
+    def __getitem__(self, index):
+        return {'features': self.features[index], 'labels': self.labels[index]}
+
+
+@torch.no_grad()
+def frozen_features(model, frame, tokenizer, model_name, max_length, device):
+    """Compute frozen encoder states once for both learning-rate trials."""
+    key = (str(model_name), getattr(model.config, '_commit_hash', None),
+           max_length, dataset_hash(frame))
+    if key not in _FROZEN_FEATURE_CACHE:
+        model.base_model.eval()
+        chunks = []
+        batches = loader(frame, tokenizer, batch_size=16, max_length=max_length)
+        for step, batch in enumerate(batches, 1):
+            batch.pop('labels')
+            output = model.base_model(**{name: value.to(device) for name, value in batch.items()})
+            chunks.append(output.last_hidden_state[:, 0].cpu())
+            if step % 100 == 0:
+                print(f'Frozen encoding: {step}/{len(batches)} batches', flush=True)
+        _FROZEN_FEATURE_CACHE[key] = torch.cat(chunks)
+    return FeatureDataset(_FROZEN_FEATURE_CACHE[key], torch.tensor(frame.label.tolist()))
 
 
 # ---------------------------------------------------------------------------
@@ -89,16 +141,18 @@ def loader(df, tokenizer, batch_size=16, max_length=128, shuffle=False):
 # ---------------------------------------------------------------------------
 
 @torch.no_grad()
-def infer(model, batches, device):
+def infer(model, batches, device, log_interval=0):
     """Chạy inference, trả về (y_true, y_pred) dạng list số nguyên 0..3."""
     model.eval()
     predictions, labels = [], []
-    for batch in batches:
+    for step, batch in enumerate(batches, 1):
         labels.extend(batch.pop('labels').tolist())
         predictions.extend(
             model(**{k: v.to(device) for k, v in batch.items()})
             .logits.argmax(-1).cpu().tolist()
         )
+        if log_interval and step % log_interval == 0:
+            print(f'Validation inference: {step}/{len(batches)} batches', flush=True)
     return labels, predictions
 
 
@@ -108,7 +162,9 @@ def infer(model, batches, device):
 
 def train(mode='finetune', model_name='distilbert/distilbert-base-uncased', epochs=3,
           batch_size=16, max_length=128, limit=0, learning_rate=None,
-          eval_steps=1500, use_amp=True, warmup_ratio=0.1):
+          eval_steps=1500, use_amp=True, warmup_ratio=0.1, output_folder=None,
+          gradient_accumulation_steps=1, cache_frozen_features=False, cache_dir=None,
+          eval_batch_size=None):
     """AG-09, AG-10, AG-11, AG-12: Huấn luyện DistilBERT (finetune hoặc frozen).
 
     Các cải tiến cốt lõi:
@@ -117,6 +173,10 @@ def train(mode='finetune', model_name='distilbert/distilbert-base-uncased', epoc
     - [AG-11] Hỗ trợ thiết bị Apple Silicon MPS bên cạnh CUDA và CPU.
     - [AG-11/12] eval_steps (mặc định 1500 batches): đánh giá và lưu checkpoint liên tục bắt đỉnh F1 trước khi overfit.
     """
+    if mode not in ('frozen', 'finetune'):
+        raise ValueError('mode must be frozen or finetune')
+    if min(epochs, batch_size, max_length, gradient_accumulation_steps) < 1:
+        raise ValueError('epochs, batch_size, max_length and accumulation steps must be positive')
     # Cố định seed để tái hiện kết quả
     random.seed(42)
     np.random.seed(42)
@@ -134,11 +194,12 @@ def train(mode='finetune', model_name='distilbert/distilbert-base-uncased', epoc
     print(f'[AG-11] Train: {len(train_df):,} mẫu | Validation: {len(valid_df):,} mẫu', flush=True)
 
     # Tokenizer và model
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
     model = AutoModelForSequenceClassification.from_pretrained(
         model_name, num_labels=4,
         id2label=dict(enumerate(LABELS)),
         label2id={v: k for k, v in enumerate(LABELS)},
+        cache_dir=cache_dir,
     )
 
     # AG-09: với mode='finetune' toàn bộ encoder được cập nhật (không freeze gì cả)
@@ -147,6 +208,8 @@ def train(mode='finetune', model_name='distilbert/distilbert-base-uncased', epoc
             p.requires_grad = False
 
     model.to(device)
+    if device.type == 'cuda':
+        torch.cuda.reset_peak_memory_stats(device)
 
     # AG-11: đếm tham số
     total_params = sum(p.numel() for p in model.parameters())
@@ -154,9 +217,25 @@ def train(mode='finetune', model_name='distilbert/distilbert-base-uncased', epoc
     print(f'[AG-11] Tổng tham số: {total_params:,} | Tham số huấn luyện: {trainable_params:,}', flush=True)
     print(f'[AG-11] Batch size: {batch_size} | Max length: {max_length}', flush=True)
 
-    # DataLoader
-    batches = loader(train_df, tokenizer, batch_size, max_length, shuffle=True)
-    valid_batches = loader(valid_df, tokenizer, batch_size, max_length, shuffle=False)
+    start = time.perf_counter()
+    eval_batch_size = batch_size if eval_batch_size is None else eval_batch_size
+    training_model = model
+    feature_encoding_seconds = 0.0
+    if mode == 'frozen' and cache_frozen_features:
+        if model.config.model_type != 'distilbert':
+            raise ValueError('Cached frozen features currently require DistilBERT')
+        encoding_start = time.perf_counter()
+        train_features = frozen_features(model, train_df, tokenizer, model_name, max_length, device)
+        valid_features = frozen_features(model, valid_df, tokenizer, model_name, max_length, device)
+        feature_encoding_seconds = time.perf_counter() - encoding_start
+        training_model = FrozenHead(model)
+        batches = DataLoader(train_features, batch_size=batch_size, shuffle=True)
+        valid_batches = DataLoader(valid_features, batch_size=eval_batch_size)
+    else:
+        batches = loader(train_df, tokenizer, batch_size, max_length, shuffle=True)
+        valid_batches = loader(valid_df, tokenizer, eval_batch_size, max_length, shuffle=False)
+    # Encoder feature extraction does not consume the training shuffle RNG.
+    torch.manual_seed(42)
 
     # Learning rate mặc định: finetune dùng 2e-5, frozen dùng 1e-3
     lr = learning_rate if learning_rate is not None else (1e-3 if mode == 'frozen' else 2e-5)
@@ -166,7 +245,7 @@ def train(mode='finetune', model_name='distilbert/distilbert-base-uncased', epoc
     optimizer = torch.optim.AdamW(
         (p for p in model.parameters() if p.requires_grad), lr=lr
     )
-    total_steps = len(batches) * epochs
+    total_steps = math.ceil(len(batches) / gradient_accumulation_steps) * epochs
     warmup_steps = int(total_steps * warmup_ratio) if warmup_ratio > 0 else 0
     scheduler = get_linear_schedule_with_warmup(
         optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps
@@ -177,20 +256,30 @@ def train(mode='finetune', model_name='distilbert/distilbert-base-uncased', epoc
     scaler = get_grad_scaler(device, enabled=amp_enabled)
 
     # Thư mục lưu checkpoint
-    folder = ROOT / f'outputs/{mode}'
+    folder = ROOT / f'outputs/{mode}' if output_folder is None else Path(output_folder)
     folder.mkdir(parents=True, exist_ok=True)
 
-    best, history, start = -1.0, [], time.perf_counter()
+    best, history = -1.0, []
+
+    def write_progress(phase, current_step, current_epoch):
+        (folder/'training_progress.json').write_text(json.dumps({
+            'phase': phase, 'epoch': current_epoch, 'training_batch': current_step,
+            'total_training_batches': len(batches) * epochs,
+            'elapsed_seconds': round(time.perf_counter() - start, 2),
+            'best_validation_macro_f1': best,
+        }, indent=2), encoding='utf-8')
 
     # Hàm đánh giá & lưu checkpoint (AG-11, AG-12)
     def run_evaluation(current_step, current_epoch, avg_train_loss):
         nonlocal best
-        y, pred = infer(model, valid_batches, device)
+        write_progress('validation', current_step, current_epoch)
+        y, pred = infer(training_model, valid_batches, device, log_interval=200)
         from sklearn.metrics import f1_score as _f1
         score = _f1(y, pred, labels=range(4), average='macro', zero_division=0)
         epoch_float = round(current_step / len(batches), 2)
         history.append({
             'step': current_step,
+            'optimizer_step': optimizer_steps,
             'epoch': epoch_float,
             'train_loss': round(avg_train_loss, 6),
             'validation_macro_f1': round(score, 6),
@@ -203,40 +292,47 @@ def train(mode='finetune', model_name='distilbert/distilbert-base-uncased', epoc
             model.save_pretrained(folder)
             tokenizer.save_pretrained(folder)
             report(y, pred, folder, 'validation')
-            print(f'    ★ Checkpoint mới tốt nhất! Đã lưu outputs/{mode} (val_macro_f1={score:.4f})', flush=True)
+            print(f'    ★ Checkpoint mới tốt nhất! Đã lưu {folder} (val_macro_f1={score:.4f})', flush=True)
         return score
 
     global_step = 0
+    optimizer_steps = 0
     step_loss_sum = 0.0
     steps_since_eval = 0
 
     for epoch in range(1, epochs + 1):
-        model.train()
+        training_model.train()
         if mode == 'frozen':
             model.base_model.eval()
 
         epoch_loss_sum = 0.0
+        optimizer.zero_grad(set_to_none=True)
         for step, batch in enumerate(batches, 1):
             global_step += 1
             steps_since_eval += 1
-            optimizer.zero_grad(set_to_none=True)
-
             with get_autocast(device, enabled=amp_enabled):
-                output = model(**{k: v.to(device) for k, v in batch.items()})
+                output = training_model(**{k: v.to(device) for k, v in batch.items()})
                 loss = output.loss
-
-            scaler.scale(loss).backward()
-            scaler.unscale_(optimizer)
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            scaler.step(optimizer)
-            scaler.update()
-            scheduler.step()
+            group_start = ((step - 1) // gradient_accumulation_steps) * gradient_accumulation_steps
+            group_size = min(gradient_accumulation_steps, len(batches) - group_start)
+            scaler.scale(loss / group_size).backward()
+            if step % gradient_accumulation_steps == 0 or step == len(batches):
+                scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                previous_scale = scaler.get_scale()
+                scaler.step(optimizer)
+                scaler.update()
+                if scaler.get_scale() >= previous_scale:
+                    scheduler.step()
+                    optimizer_steps += 1
+                optimizer.zero_grad(set_to_none=True)
 
             loss_val = loss.item()
             epoch_loss_sum += loss_val
             step_loss_sum += loss_val
 
             if step % 100 == 0:
+                write_progress('training', global_step, epoch)
                 current_lr = scheduler.get_last_lr()[0] if scheduler else lr
                 print(
                     f'epoch={epoch} batch={step}/{len(batches)} (step={global_step}/{total_steps}) '
@@ -250,7 +346,7 @@ def train(mode='finetune', model_name='distilbert/distilbert-base-uncased', epoc
                 run_evaluation(global_step, epoch, avg_eval_loss)
                 step_loss_sum = 0.0
                 steps_since_eval = 0
-                model.train()
+                training_model.train()
                 if mode == 'frozen':
                     model.base_model.eval()
 
@@ -266,10 +362,20 @@ def train(mode='finetune', model_name='distilbert/distilbert-base-uncased', epoc
     config = dict(
         mode=mode,
         model_name=model_name,
+        pretrained_revision=getattr(model.config, '_commit_hash', None),
+        software_versions={'python': platform.python_version(), 'torch': str(torch.__version__),
+                           'transformers': version('transformers'), 'numpy': np.__version__},
         epochs=epochs,
         batch_size=batch_size,
+        eval_batch_size=eval_batch_size,
+        gradient_accumulation_steps=gradient_accumulation_steps,
+        effective_batch_size=batch_size * gradient_accumulation_steps,
+        optimizer_steps=optimizer_steps,
         max_length=max_length,
         train_n=len(train_df),
+        limit=limit,
+        train_sha256=dataset_hash(train_df),
+        validation_sha256=dataset_hash(valid_df),
         validation_n=len(valid_df),
         seed=42,
         learning_rate=lr,
@@ -277,9 +383,16 @@ def train(mode='finetune', model_name='distilbert/distilbert-base-uncased', epoc
         eval_steps=eval_steps,
         use_amp=amp_enabled,
         device=str(device),
+        cpu_threads=torch.get_num_threads(),
+        device_name=torch.cuda.get_device_name(device) if device.type == 'cuda' else 'CPU',
+        peak_cuda_memory_bytes=torch.cuda.max_memory_allocated(device) if device.type == 'cuda' else None,
         total_parameters=total_params,
         trainable_parameters=trainable_params,
         elapsed_seconds=round(elapsed, 2),
+        timing_scope='train_validation_and_save_including_feature_encoding',
+        feature_encoding_seconds=round(feature_encoding_seconds, 2),
+        cached_frozen_features=mode == 'frozen' and cache_frozen_features,
+        experiment_scope='train_subset' if limit else 'full_train',
         best_validation_macro_f1=round(best, 6),
         history=history,
     )
@@ -289,6 +402,7 @@ def train(mode='finetune', model_name='distilbert/distilbert-base-uncased', epoc
 
     # AG-12: tự động vẽ đồ thị sau khi huấn luyện xong
     plot_training_history(folder)
+    write_progress('completed', global_step, epochs)
 
     return config
 
@@ -486,7 +600,7 @@ def plot_training_history(folder):
 
     has_steps = 'step' in history[0]
     x_vals = [h['step'] if has_steps else h['epoch'] for h in history]
-    x_label = 'Optimization Step' if has_steps else 'Epoch'
+    x_label = 'Training Batch' if has_steps else 'Epoch'
 
     losses = [h['train_loss'] for h in history]
     f1s = [h['validation_macro_f1'] for h in history]
@@ -566,29 +680,31 @@ def plot_training_history(folder):
         '',
         '## Nhận xét hội tụ',
         '',
-        f'- Loss giảm từ `{losses[0]:.4f}` xuống `{losses[-1]:.4f}` '
-        f'(giảm `{loss_drop:.4f}` qua {len(x_vals)} mốc đánh giá).',
+        f'- Loss tại mốc đầu `{losses[0]:.4f}`, mốc cuối `{losses[-1]:.4f}` '
+        f'(thay đổi `{ -loss_drop:+.4f}` qua {len(x_vals)} mốc đánh giá).',
         f'- Validation macro-F1 đạt cao nhất `{best_f1:.4f}` tại {x_label} `{best_x}` (Epoch {best_epoch}).',
     ]
 
     if is_converging:
-        lines.append('- **Mô hình đang hội tụ tốt**: loss giảm đều, F1 duy trì đà tăng/ổn định.')
+        lines.append('- So với mốc đầu, loss cuối thấp hơn và validation F1 cuối không giảm. '
+                     'Các mốc này chưa đủ để kết luận đã hội tụ.')
     else:
-        lines.append('- **Chú ý**: loss hoặc F1 chưa cải thiện ổn định, cần kiểm tra lại cấu hình.')
+        lines.append('- So sánh mốc đầu và cuối chưa cho thấy đồng thời loss giảm và F1 không giảm. '
+                     'Checkpoint vẫn được chọn bằng validation macro-F1 cao nhất.')
 
     if stagnant:
         lines.append(
             f'- Các mốc cuối F1 thay đổi rất ít (`Δ={last_delta:.4f}`). '
-            'Mô hình có thể đã bão hòa – việc sử dụng checkpoint tốt nhất giúp tránh overfitting.'
+            'Hai mốc gần nhau chưa đủ chứng minh mô hình bão hòa hoặc không overfit.'
         )
 
     lines += [
         '',
         '## So sánh với frozen encoder (TV2)',
         '',
-        'Fine-tuning toàn bộ encoder cho phép mô hình điều chỉnh cả lớp Attention, '
-        'không chỉ classification head. Kỳ vọng validation macro-F1 cao hơn frozen encoder '
-        '(~87%) khi huấn luyện đủ epoch, nhờ kỹ thuật Linear Warmup Scheduler giúp ổn định trọng số pre-trained.',
+        'Fine-tuning cập nhật encoder; frozen chỉ cập nhật classification head. '
+        'Chỉ so sánh chất lượng sau khi có metrics của cả hai trên cùng validation và cùng tập train. '
+        'Đồ thị của một lượt chạy chưa chứng minh phương pháp nào tốt hơn.',
         '',
         '## Đồ thị',
         '',

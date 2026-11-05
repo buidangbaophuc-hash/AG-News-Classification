@@ -1,0 +1,63 @@
+{
+  "mode": "finetune",
+  "model_name": "distilbert/distilbert-base-uncased",
+  "pretrained_revision": "12040accade4e8a0f71eabdb258fecc2e7e948be",
+  "software_versions": {
+    "python": "3.14.0",
+    "torch": "2.11.0+cu128",
+    "transformers": "4.57.1",
+    "numpy": "2.3.4"
+  },
+  "epochs": 3,
+  "batch_size": 16,
+  "eval_batch_size": 16,
+  "gradient_accumulation_steps": 1,
+  "effective_batch_size": 16,
+  "optimizer_steps": 937,
+  "max_length": 128,
+  "train_n": 5000,
+  "limit": 5000,
+  "train_sha256": "daf3a462722352b1e32251404c56939e00c03ea6c52f4b59ec15ee504c824d0b",
+  "validation_sha256": "b61a10f2594038187f5cc787551e41e3e942c780ecaebdd67460317d854fe701",
+  "validation_n": 11992,
+  "seed": 42,
+  "learning_rate": 2e-05,
+  "warmup_ratio": 0.1,
+  "eval_steps": 0,
+  "use_amp": true,
+  "device": "cuda",
+  "cpu_threads": 4,
+  "device_name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+  "peak_cuda_memory_bytes": 1389563904,
+  "total_parameters": 66956548,
+  "trainable_parameters": 66956548,
+  "elapsed_seconds": 980.96,
+  "timing_scope": "train_validation_and_save_including_feature_encoding",
+  "feature_encoding_seconds": 0.0,
+  "cached_frozen_features": false,
+  "experiment_scope": "train_subset",
+  "best_validation_macro_f1": 0.911828,
+  "history": [
+    {
+      "step": 313,
+      "optimizer_step": 311,
+      "epoch": 1.0,
+      "train_loss": 0.594379,
+      "validation_macro_f1": 0.90287
+    },
+    {
+      "step": 626,
+      "optimizer_step": 624,
+      "epoch": 2.0,
+      "train_loss": 0.246435,
+      "validation_macro_f1": 0.909309
+    },
+    {
+      "step": 939,
+      "optimizer_step": 937,
+      "epoch": 3.0,
+      "train_loss": 0.169956,
+      "validation_macro_f1": 0.911828
+    }
+  ]
+}

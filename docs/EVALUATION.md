@@ -1,4 +1,4 @@
-# AG-13 – Quy ước đánh giá và kiểm thử (TV4)
+# AG-13, AG-14, AG-16 – Đánh giá và kiểm thử (TV4)
 
 Module `src/metrics.py` chuẩn hóa đánh giá cho baseline, frozen encoder và
 fine-tuning. Kiểm thử module chạy bằng nhãn mẫu, không cần dữ liệu AG News,
@@ -127,8 +127,113 @@ Chỉ đánh giá **test sau khi chốt cấu hình**; không dùng test để t
 siêu tham số. Khi đánh giá thật, dùng cùng mapping và tập dữ liệu đã thống nhất,
 ghi lại cấu hình cùng nguồn nhãn thật/dự đoán, lưu kết quả riêng cho từng run.
 
-Phần có thể làm ngay là AG-13 và kiểm thử đánh giá độc lập. Kiểm thử chống giao
-dữ liệu sử dụng các tập trong `data/processed/` do TV1 chuẩn bị. Kiểm thử tải lại model và dự đoán
-bốn chủ đề trong AG-16 chờ TV2/TV3 bàn giao model/checkpoint, tokenizer (với
-Transformer), `run.json` và cấu hình đã chốt. AG-14 so sánh mô hình và AG-15
-phân tích lỗi thực tế chờ kết quả dự đoán thật; chưa thực hiện trong phạm vi này.
+Kiểm thử chống giao dữ liệu sử dụng các tập trong `data/processed/` do TV1 chuẩn
+bị. Các phần dưới đây mô tả công cụ AG-14 và AG-16; AG-15 được hướng dẫn trong
+[ERROR_ANALYSIS.md](ERROR_ANALYSIS.md).
+
+## AG-14 – Đánh giá model đã chốt và so sánh
+
+`src/evaluation.py` chỉ tải model đã lưu, không fit lại. Các thư mục mặc định:
+
+| Run | Artifact cần bàn giao |
+|---|---|
+| `outputs/baseline/` | Pipeline `model.pkl` có nhãn 0–3, `run.json` |
+| `outputs/frozen/` | Checkpoint Hugging Face, tokenizer, `run.json` có `mode=frozen` |
+| `outputs/finetune/` | Checkpoint Hugging Face, tokenizer, `run.json` có `mode=finetune` |
+
+`run.json` cần số mẫu train (`train_n`). Transformer cần `max_length`,
+`model_name`, `seed`; có thể ghi `batch_size`, thời gian (`elapsed_seconds`) và
+số tham số huấn luyện (`trainable_parameters`). Mapping trong checkpoint phải
+khớp mapping chung. Tokenizer và checkpoint chỉ được đọc từ máy, không tự tải
+hoặc huấn luyện khi evaluate/predict.
+
+Chỉ sau khi nhóm chốt cấu hình và checkpoint dựa trên validation:
+
+```powershell
+python -m src.main evaluate --run baseline --split test --config-finalized
+python -m src.main evaluate --run frozen --split test --config-finalized
+python -m src.main evaluate --run finetune --split test --config-finalized
+python -m src.main compare
+```
+
+`--config-finalized` là xác nhận của người chạy rằng việc chọn cấu hình đã hoàn
+thành trên validation; chương trình không tự suy ra quyết định này. Thiếu cờ
+sẽ dừng trước khi đọc test hoặc suy luận. Đánh giá validation không cần cờ:
+
+```powershell
+python -m src.main evaluate --run finetune --split validation
+```
+
+Nếu model ở thư mục khác, dùng `--model-folder "C:\duong-dan\model"`; kết quả
+vẫn ghi trong `outputs/<run>/`, không sửa thư mục model bên ngoài. `run.json`
+được sao chép cùng kết quả để giữ cấu hình tham chiếu. Nếu nhóm bàn giao bộ
+test khác, chỉ định `--data-file "C:\duong-dan\test.csv"` có cột `text,label`.
+`predict` cũng hỗ trợ `--model-folder`.
+
+Ngoài metrics, hình và predictions CSV, mỗi lượt đánh giá ghi
+`{split}_evaluation.json`, gồm tên run/split, thời điểm UTC, xác nhận cấu hình,
+mapping, SHA-256 của cấu hình, checkpoint/tokenizer, metrics, predictions và
+các cặp text/nhãn thật theo thứ tự. Không dùng lại kết quả của checkpoint cũ.
+
+`compare` yêu cầu đủ ba run mặc định; thiếu một run sẽ báo lỗi thay vì bỏ qua.
+Có thể chủ động chọn hai run bằng `--runs baseline finetune`. Chương trình kiểm
+tra cùng text/nhãn thật/thứ tự test, cấu hình và kết quả không bị thay đổi;
+Transformer phải cùng backbone, seed và max_length. Nếu các file model còn ở
+thư mục nguồn đã ghi nhận (hoặc thư mục kết quả khi không còn nguồn), SHA-256
+của chúng cũng được kiểm tra. Có thể chia sẻ kết quả
+và manifest mà không kèm trọng số lớn.
+
+Khác `train_n` mặc định gây lỗi; chỉ dùng `--allow-different-train-size` khi muốn
+báo cáo rõ giới hạn này trong cột `comparison_note`. Bảng `outputs/comparison.csv`
+giữ các cột `run,test_n,accuracy,macro_f1,train_n,training_seconds`, bổ sung số
+tham số, cấu hình và dấu vân tay test. Thời gian/số tham số chưa bàn giao để
+trống, không điền số ước lượng. Dữ liệu test cũ thiếu manifest cần được đánh giá
+lại với checkpoint đã chốt; không dùng `docs/smoke_run/` làm kết quả cuối.
+
+## AG-16 – Kiểm thử pipeline
+
+```powershell
+python -m unittest discover -s tests -v
+python -m unittest discover -s tests -p "test_pipeline.py" -v
+```
+
+- `test_data.py`: mapping, đầu vào, chuẩn hóa, bỏ trùng và không giao dữ liệu.
+- `test_metrics.py`: tính chỉ số và file đầu ra, dùng nhãn mẫu.
+- `test_evaluation.py`, `test_cli.py`: điều kiện trước test, nguồn kết quả, so
+  sánh cùng test, giới hạn khác train_n, cấu hình Transformer và CLI.
+- `test_error_analysis.py`: chọn lỗi, bảo toàn văn bản/nhãn, review và tổng hợp.
+- `test_training.py`: head cache khớp model đầy đủ; frozen giữ encoder và học
+  head; fine-tuning cập nhật cả hai, không đọc test trong huấn luyện. Dùng model
+  nhỏ ngẫu nhiên cục bộ, không tạo kết quả thực nghiệm.
+- `test_pipeline.py`: tải lại pipeline scikit-learn mẫu trong thư mục tạm;
+  checkpoint DistilBERT cực nhỏ có trọng số ngẫu nhiên và tokenizer cục bộ để
+  kiểm tra hai nhánh frozen/finetune offline. Model mẫu này không tối ưu trọng
+  số và không chứng minh chất lượng AG News. Pipeline scikit-learn mẫu chỉ fit
+  tám câu viết tay để kiểm tra lưu/tải; không phải model thực nghiệm.
+
+`DeliveredModelTests` tải lại từng model thật hai lần, kiểm tra dự đoán ổn định,
+đủ tám đầu ra hợp lệ cho các câu đầu vào thuộc bốn chủ đề. Không đặt ngưỡng
+accuracy cho bộ demo. Nếu chưa bàn giao model, từng bài sẽ **skip với lý do**;
+skip không có nghĩa là đã kiểm chứng model thật. Có thể trỏ đến model ngoài repo:
+
+```powershell
+$env:AG_NEWS_BASELINE_DIR = 'C:\duong-dan\baseline'
+$env:AG_NEWS_FROZEN_DIR = 'C:\duong-dan\frozen'
+$env:AG_NEWS_FINETUNE_DIR = 'C:\duong-dan\finetune'
+python -m unittest discover -s tests -p "test_pipeline.py" -v
+```
+
+## Tình trạng bàn giao ngày 05/11/2026
+
+Đã có đủ ba model thật trong `outputs/baseline/`, `outputs/frozen/`,
+`outputs/finetune/`, huấn luyện trên cùng 5.000 mẫu train. Transformer đã thử hai
+LR/mode và chạy 3 epoch; cấu hình được chốt bằng validation trước khi đánh giá
+cùng test 7.600 mẫu. `outputs/comparison.csv` cùng metrics, confusion matrix,
+predictions và manifest đã được tạo. Phương pháp ở [TRAINING.md](TRAINING.md),
+kết quả và giới hạn ở [RESULTS.md](RESULTS.md).
+
+Đã chạy `.venv-gpu\Scripts\python.exe -m unittest discover -s tests -v`:
+**46 bài, 46 đạt, 0 skip**, gồm cả ba model thật. Kiểm thử fixture không phải
+số liệu chất lượng mô hình. AG-15 đã có 20 chú giải lỗi thật do Codex đề xuất;
+nhóm cần review độc lập các giải thích và nghi vấn nhãn nguồn. Các task được
+chuyển sang Review, không tự xác nhận đã có peer review hoặc thực nghiệm full.

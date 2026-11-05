@@ -1,0 +1,26 @@
+{
+  "run": "finetune",
+  "split": "test",
+  "config_finalized": true,
+  "evaluated_at_utc": "2026-11-05T13:51:22.191241+00:00",
+  "selection_basis": "validation_macro_f1",
+  "labels": [
+    "World",
+    "Sports",
+    "Business",
+    "Sci/Tech"
+  ],
+  "dataset_sha256": "e1242b5b4fb4039896e1524b10792deb8d78000f241bb5cf7fdfff800a78d9ed",
+  "run_config_sha256": "476aa864260b6977d33dba807aa52e12d91147bf3cc32dcd29de24533e52b901",
+  "model_sha256": {
+    "model.safetensors": "9ff7a6081709fd8296c24c55e4a8e2021e4ad310a7d496be2c7ed7b602c658ca",
+    "config.json": "707c6f851558bf48e6f980f155caf5108a5de6c5243ba62745d43732d24e5d0a",
+    "tokenizer.json": "79ea220416a57ca8acdf069d71875d5d2ddadef66021aeb6c120a7c546c04344",
+    "tokenizer_config.json": "21c3bea73b6711617c657664adcd4d0b02ce20d2db4b2ebdd722a6da8da28bcd",
+    "special_tokens_map.json": "3c3507f36dff57bce437223db3b3081d1e2b52ec3e56ee55438193ecb2c94dd6",
+    "vocab.txt": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3"
+  },
+  "model_source": "C:\\Users\\nottq\\AG-News-Classification\\outputs\\finetune",
+  "metrics_sha256": "2d32c4bf41f434d95fa2650353a27a50b4299f66d592b3089e79b454028969f8",
+  "predictions_sha256": "269468004134640ff98ac8bbfcdc67f5ea697a729ff1b15e78747b505430e663"
+}

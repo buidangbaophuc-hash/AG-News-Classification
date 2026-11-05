@@ -1,4 +1,6 @@
 .venv/
+.venv-gpu/
+.cache/
 __pycache__/
 *.pyc
 *.ipynb
@@ -16,9 +18,8 @@ outputs/**/special_tokens_map.json
 outputs/**/vocab.txt
 outputs/**/config.json
 outputs/**/*.pkl
+outputs/*.pid
+outputs/setup_status.json
+outputs/**/training_progress.json
 
-# Giữ lại metadata và hình ảnh (commit được)
-!outputs/**/*.png
-!outputs/**/*.json
-!outputs/**/*.csv
-!outputs/**/*.md
+# Metadata và hình ảnh không bị ignore; trọng số/tokenizer và trạng thái tạm ở trên bị ignore.

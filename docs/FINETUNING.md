@@ -1,5 +1,12 @@
 # AG-09 đến AG-12 – Fine-tuning DistilBERT (Trần Đức Lĩnh – TV3)
 
+Đợt chạy thực tế ngày 05/11/2026 dùng 5.000 mẫu train, 3 epoch cho mỗi LR và
+đánh giá cuối epoch (`eval_steps=0`). Đã chọn LR 5e-5 bằng validation macro-F1
+0.912148; test macro-F1 sau khi chốt là 0.912578. Xem
+[TRAINING.md](TRAINING.md) và [RESULTS.md](RESULTS.md) cho giao thức, nguồn
+kết quả và giới hạn. Các lệnh full train dưới đây là hướng dẫn, chưa phải kết
+quả huấn luyện toàn bộ dữ liệu.
+
 ## 1. Bài toán và phương pháp (AG-09)
 
 Nhiệm vụ của TV3 là fine-tuning **toàn bộ** mô hình `distilbert-base-uncased`
@@ -21,14 +28,14 @@ DistilBERT encoder (6 Transformer blocks, hidden=768)  ← được cập nhật
    ↓
 [CLS] embedding (768 chiều)
    ↓
-Linear classifier (768 → 4)
+Linear (768 → 768) → ReLU → dropout → Linear (768 → 4)
    ↓
 Softmax → nhãn dự đoán 0..3
 ```
 
-- Tổng tham số DistilBERT: ~66.4 triệu.  
-- Tham số huấn luyện (finetune): ~66.4 triệu (toàn bộ 100%).  
-- Tham số huấn luyện (frozen): ~590k (chỉ classification head).
+- Tổng tham số model phân loại: 66.956.548.
+- Tham số huấn luyện (finetune): 66.956.548 (toàn bộ model).
+- Tham số huấn luyện (frozen): 593.668 (hai lớp của classification head).
 
 ### Dữ liệu
 
@@ -58,11 +65,12 @@ Thử nghiệm hai learning rate cho chế độ `finetune`:
 | `5e-5` | Warmup 10% + Linear Decay | Thử nghiệm tốc độ hội tụ nhanh hơn |
 
 Tiêu chí chọn: **validation macro-F1 cao nhất** trên tập validation cố định (Seed 42).  
-Các yếu tố khác giữ nguyên: cùng split, `max_length=128`, `batch_size=16`, `eval_steps=500`.
+Các yếu tố khác giữ nguyên: cùng split, `max_length=128`, `batch_size=16`;
+đợt tập con thực tế đánh giá cuối epoch (`eval_steps=0`).
 
 Kết quả so sánh được lưu tại `outputs/lr_comparison.json`:
 ```bash
-python -m src.transformer compare_learning_rates --limit 5000
+python -m src.experiments --limit 5000 --epochs 3 --batch-size 16 --accumulation-steps 1 --threads 4
 ```
 
 ---
@@ -70,9 +78,9 @@ python -m src.transformer compare_learning_rates --limit 5000
 ## 3. Tối ưu tài nguyên & Tần suất Checkpoint (AG-11)
 
 ### 3.1. Automatic Mixed Precision (AMP - FP16)
-Huấn luyện ở định dạng FP32 thuần túy gây lãng phí bộ nhớ GPU. Hệ thống kích hoạt **AMP (`torch.amp.autocast` + `GradScaler`)**:
-- Giảm **~40–50% VRAM**, giúp huấn luyện ổn định batch_size=16 mà không bị OOM.
-- Tận dụng Tensor Cores trên GPU hiện đại (NVIDIA T4, RTX, V100, A100) tăng tốc độ train 1.5× – 2×.
+Hệ thống dùng **AMP (`torch.amp.autocast` + `GradScaler`)** khi train trên CUDA.
+AMP có thể giảm bộ nhớ và tăng tốc tùy phần cứng/toán tử. Đợt này chưa có phép
+đối chứng FP32 nên không báo phần trăm giảm VRAM hoặc tỷ số tăng tốc.
 
 ### 3.2. Hỗ trợ đa nền tảng phần cứng
 Hệ thống tự động nhận diện thiết bị qua hàm `get_device()`:
@@ -109,14 +117,14 @@ Sau khi huấn luyện, hàm `plot_training_history(folder)` tự động tạo:
 
 | File | Nội dung |
 |---|---|
-| `outputs/finetune/training_summary.png` | Đồ thị 2 trục: train loss và val macro-F1 theo optimization step |
+| `outputs/finetune/training_summary.png` | Train loss và val macro-F1 theo số batch; run.json ghi thêm optimizer_step |
 | `outputs/finetune/training_analysis.md` | Báo cáo nhận xét chi tiết về tiến trình hội tụ |
 
 ### Cách đọc đồ thị
 
-- **Train loss giảm đều**: mô hình học ổn định, scheduler phát huy hiệu quả.
-- **Validation F1 đạt đỉnh sớm**: `eval_steps` giúp bắt đúng checkpoint tối ưu thay vì lấy model ở cuối epoch khi đã bắt đầu overfit.
-- **Biến động F1 nhỏ ($\Delta < 0.002$)**: mô hình bão hòa, có thể dừng sớm.
+- Loss giảm là dấu hiệu khớp train tốt hơn, chưa chứng minh scheduler là nguyên nhân.
+- Chọn checkpoint có validation F1 cao nhất trong các mốc đã đánh giá.
+- F1 thay đổi ít giữa hai mốc chưa đủ chứng minh bão hòa hoặc không overfit.
 
 ---
 
@@ -147,7 +155,7 @@ python -m src.main train --mode finetune --limit 5000 --epochs 2 --eval-steps 50
 ### So sánh learning rate (AG-10)
 
 ```bash
-python -m src.transformer compare_learning_rates --limit 5000
+python -m src.experiments --limit 5000 --epochs 3 --batch-size 16 --accumulation-steps 1 --threads 4
 ```
 
 ### Đánh giá và dự đoán
@@ -157,7 +165,7 @@ python -m src.transformer compare_learning_rates --limit 5000
 python -m src.main evaluate --run finetune --split validation
 
 # Đánh giá test (chỉ sau khi chốt cấu hình)
-python -m src.main evaluate --run finetune --split test
+python -m src.main evaluate --run finetune --split test --config-finalized
 
 # Dự đoán bài báo mới
 python -m src.main predict --run finetune --text "Researchers developed a new high-efficiency solar panel technology"

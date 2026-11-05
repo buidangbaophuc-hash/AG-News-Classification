@@ -1,0 +1,15 @@
+{
+  "reference_sha256": "5e3f1108e3cb34ee048634875d8482665b65ac713291a7e32396fb18f6ff0063",
+  "runs": {
+    "frozen": {
+      "encoder_tensors": 100,
+      "changed_encoder_tensors": 0,
+      "unchanged_encoder_tensors": 100
+    },
+    "finetune": {
+      "encoder_tensors": 100,
+      "changed_encoder_tensors": 100,
+      "unchanged_encoder_tensors": 0
+    }
+  }
+}

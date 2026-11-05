@@ -163,7 +163,9 @@ Các đường dẫn dưới đây tính từ thư mục gốc repository, nơi 
 │   ├── dataset.py                      # Import tương thích; không có pipeline dữ liệu riêng
 │   ├── baseline.py                     # TF-IDF + Logistic Regression
 │   ├── transformer.py                  # DistilBERT: frozen encoder và fine-tuning
-│   └── metrics.py                      # Metrics JSON và confusion matrix PNG
+│   ├── metrics.py                      # Metrics JSON và confusion matrix PNG
+│   ├── evaluation.py                   # Đánh giá model và so sánh test có nguồn gốc
+│   └── error_analysis.py               # Chọn mẫu sai và tổng hợp review nguyên nhân
 │                                       
 ├── data/                               # Dữ liệu cục bộ; không commit mặc định
 │   ├── raw/                            # Chép hai CSV gốc từ ZIP dữ liệu vào đây
@@ -193,13 +195,20 @@ Các đường dẫn dưới đây tính từ thư mục gốc repository, nơi 
 │
 ├── tests/                              # Kiểm thử dữ liệu và đánh giá
 │   ├── test_data.py                    # Mapping, chuẩn hóa và không giao text giữa tập
-│   └── test_metrics.py                 # Chỉ số, nhãn sai và file JSON/PNG
+│   ├── test_metrics.py                 # Chỉ số, nhãn sai và file JSON/PNG
+│   ├── test_evaluation.py              # Điều kiện và tính nhất quán khi so sánh
+│   ├── test_error_analysis.py          # Chọn mẫu sai và review
+│   ├── test_cli.py                     # Luồng CLI đánh giá/so sánh/phân tích lỗi
+│   ├── test_pipeline.py                # Tải lại model mẫu và kiểm tra model bàn giao
+│   ├── helpers.py                      # Fixture tổng hợp trong thư mục tạm
+│   └── __init__.py                     # Package kiểm thử
 │                                       
 ├── docs/                               # Tài liệu và phân công nhóm
 │   ├── PHAN_CONG.md                    # 20 task cho 5 người, đầu ra và phụ thuộc
 │   ├── tasks.csv                       # Bảng task mở bằng Excel / nhập công cụ quản lý
 │   ├── VALIDATION.md                   # Ghi nhận kiểm chứng bộ mã khởi tạo
 │   ├── EVALUATION.md                   # Hợp đồng đánh giá và cách chạy kiểm thử
+│   ├── ERROR_ANALYSIS.md               # Quy trình review ít nhất 20 mẫu sai thật
 │   ├── BASELINE_NOTES.md               # Ghi chú thành viên cần đối chiếu artifact
 │   ├── data_audit.md                   # Báo cáo dữ liệu gốc
 │   ├── eda.md                          # Báo cáo phân tích train/validation
@@ -250,9 +259,10 @@ Phiên bản này dùng **CLI**, chưa có REST API hoặc HTTP endpoint. Các l
 | `prepare` | Không có tham số bắt buộc | CSV trong data/processed; in số mẫu và phân bố nhãn |
 | `baseline` | `--limit` mặc định 0 | outputs/baseline/model.pkl, run.json và validation metrics/hình |
 | `train` | `--mode frozen` hoặc `--mode finetune` | Checkpoint, tokenizer, run.json và validation metrics/hình trong outputs theo mode |
-| `evaluate` | `--run baseline/frozen/finetune`; `--split validation/test`, mặc định test | metrics JSON, confusion matrix PNG và predictions CSV của split |
+| `evaluate` | `--run`; `--split validation/test`, test cần `--config-finalized`; tùy chọn `--model-folder`, `--data-file` | metrics JSON, confusion matrix PNG, predictions CSV và manifest nguồn kết quả |
 | `predict` | `--run`; `--text` bắt buộc | Tên chủ đề in trong terminal |
-| `compare` | Không có tham số bắt buộc | outputs/comparison.csv; chỉ tổng hợp run đã có test_metrics.json |
+| `compare` | Mặc định đủ ba run; có thể chọn `--runs baseline finetune` | outputs/comparison.csv; kiểm tra cùng test và cấu hình, báo rõ artifact thiếu |
+| `analyze-errors` | `--run`; mặc định chọn 20 lỗi; `--finalize` để tổng hợp review | error_review.csv, error_summary.json và error_analysis.md |
 
 Tham số `train`: `--model-name` mặc định `distilbert/distilbert-base-uncased`, `--epochs 3`, `--batch-size 16`, `--max-length 128`, `--limit 0`. Learning rate mặc định là 1e-3 cho frozen và 2e-5 cho fine-tuning, có thể thay bằng `--learning-rate`.
 
@@ -265,8 +275,9 @@ Tham số `train`: `--model-name` mặc định `distilbert/distilbert-base-unca
 | `{split}_predictions.csv` | text, label và predicted_label theo mapping 0–3 |
 | `{split}_confusion_matrix.png` | Thứ tự lớp: World, Sports, Business, Sci/Tech |
 | Transformer `run.json` | Mode, backbone, seed, learning rate, batch size, max_length, train_n, thiết bị, số tham số trainable, thời gian và lịch sử loss/F1 |
-| Baseline `run.json` | Tên phương pháp, train_n và seed; chưa ghi thời gian baseline |
-| `comparison.csv` | run, test_n, accuracy, macro_f1, train_n, training_seconds; thời gian baseline hiện để trống |
+| Baseline `run.json` | Tên phương pháp, train_n, seed, dấu vân tay dữ liệu, số tham số và thời gian |
+| `{split}_evaluation.json` | Xác nhận cấu hình, thời điểm, mapping và SHA-256 dữ liệu/artifact |
+| `comparison.csv` | run, test_n, accuracy, macro_f1, train_n, training_seconds và thông tin cấu hình; mục chưa bàn giao để trống |
 
 ### 2.6. Milestones – Các mốc thực hiện
 
@@ -311,6 +322,17 @@ py -3.11 -m venv .venv
 
 Trong VS Code: Ctrl+Shift+P → Python: Select Interpreter → chọn Python trong .venv. Các lệnh gọi trực tiếp python.exe nên không cần chạy Activate.ps1.
 
+Nếu dùng môi trường GPU đã tạo trên máy này, chọn
+`.venv-gpu\Scripts\python.exe`. Nút **Run Python File** trên `main.py` hoặc
+`src/main.py` sẽ hiện hướng dẫn và ví dụ lệnh khi chưa có tham số. Để dự đoán,
+mở Terminal tại thư mục project và chạy, ví dụ:
+
+```powershell
+.\.venv-gpu\Scripts\python.exe -m src.main predict --run finetune --text "The team won the match."
+```
+
+Có thể gọi trực tiếp `python src/main.py predict ...` với cùng các tham số.
+
 Nếu chỉ thử baseline, có thể thay requirements.txt bằng requirements-baseline.txt. Cài đặt PyTorch/CUDA theo môi trường máy tại [hướng dẫn PyTorch](https://pytorch.org/get-started/locally/). Bộ mã tự chọn GPU khi torch.cuda.is_available(), còn lại chạy CPU.
 
 ### 3.2. Baseline
@@ -339,16 +361,45 @@ Nếu chỉ thử baseline, có thể thay requirements.txt bằng requirements-
 
 Có thể đổi `--model-name google-bert/bert-base-uncased` để mở rộng sang BERT. Đây là thử nghiệm bổ sung; phép so sánh chính vẫn phải dùng cùng backbone giữa frozen và fine-tuning.
 
+Đợt thực nghiệm tập con đã thống nhất dùng cùng **5.000 mẫu train**, 3 epoch cho
+mỗi Transformer và hai LR riêng cho mỗi chế độ:
+
+```powershell
+.\.venv-gpu\Scripts\python.exe -m src.experiments --limit 5000 --epochs 3 --batch-size 16 --accumulation-steps 1 --threads 4
+```
+
+Lệnh này giữ riêng từng lượt trong `outputs/experiments/`, chọn bằng validation
+macro-F1 và sao chép checkpoint được chọn sang `outputs/frozen/`,
+`outputs/finetune/`. Chi tiết phương pháp, môi trường và cách diễn giải thời
+gian nằm trong [TRAINING.md](docs/TRAINING.md). Các tham số `train`
+`--output-folder`, `--gradient-accumulation-steps`, `--cache-frozen-features` và
+`--cache-dir` cũng có thể dùng khi chạy từng lượt riêng.
+
 ### 3.4. Đánh giá cuối và so sánh
 
 Chỉ chạy phần này sau khi chốt cấu hình dựa trên validation:
 
 ```powershell
-.\.venv\Scripts\python.exe -m src.main evaluate --run baseline --split test
-.\.venv\Scripts\python.exe -m src.main evaluate --run frozen --split test
-.\.venv\Scripts\python.exe -m src.main evaluate --run finetune --split test
+.\.venv\Scripts\python.exe -m src.main evaluate --run baseline --split test --config-finalized
+.\.venv\Scripts\python.exe -m src.main evaluate --run frozen --split test --config-finalized
+.\.venv\Scripts\python.exe -m src.main evaluate --run finetune --split test --config-finalized
 .\.venv\Scripts\python.exe -m src.main compare
 ```
+
+Thiếu checkpoint/configuration thì chưa chạy bước này. `--config-finalized` là
+xác nhận đã chọn cấu hình bằng validation. `compare` không bỏ qua run còn thiếu
+và không so sánh hai bộ test chỉ vì có cùng số mẫu. Nếu khác số mẫu train, cần
+`--allow-different-train-size` và ghi rõ giới hạn. Xem [EVALUATION.md](docs/EVALUATION.md).
+
+Sau khi có dự đoán test thật, chọn mẫu sai rồi điền nguyên nhân trong CSV:
+
+```powershell
+python -m src.main analyze-errors --run finetune
+# Điền error_category và explanation trong outputs/finetune/error_review.csv
+python -m src.main analyze-errors --run finetune --finalize
+```
+
+Quy trình và khung nhóm nguyên nhân có trong [ERROR_ANALYSIS.md](docs/ERROR_ANALYSIS.md).
 
 ### 3.5. Demo dự đoán
 
@@ -372,16 +423,25 @@ Audit cần CSV trong `data/raw/`. EDA cần train/validation trong `data/proces
 
 ## 4. Tình trạng triển khai và kiểm chứng
 
-| Hạng mục | Tình trạng của bộ mã khởi tạo |
+| Hạng mục | Kiểm chứng tại máy ngày 05/11/2026 |
 |---|---|
 | Prepare trên dữ liệu đính kèm | Đã chạy kiểm tra |
 | Kiểm thử dữ liệu | Có kiểm thử mapping, nhãn sai, chuẩn hóa, văn bản rỗng, loại trùng và không giao text; chạy lệnh ở mục 3.6 để xác nhận trên dữ liệu cục bộ |
 | AG-13 và kiểm thử đánh giá | Đã chuẩn hóa chỉ số trên đủ bốn lớp, có kiểm thử JSON/PNG bằng nhãn mẫu; nhãn mẫu không phải kết quả mô hình |
 | Baseline với 2.000 mẫu train | Đã chạy train, lưu/tải model, evaluate, predict và compare |
 | Baseline toàn bộ train | Chưa có kết quả đầy đủ trong lần kiểm chứng này |
-| Frozen và fine-tuning Transformer | Có mã; đã kiểm tra cú pháp, chưa kiểm chứng thực thi hoặc huấn luyện do môi trường tạo gói thiếu torch/transformers |
-| EDA, đồ thị học, phân tích lỗi, báo cáo và slide | Nhóm cần hoàn thiện |
-| So sánh cuối giữa ba phương pháp | Chưa hoàn thành; chưa có kết luận mô hình nào tốt hơn |
+| Baseline, frozen và fine-tuning với 5.000 mẫu train | Đã huấn luyện thật; Transformer 3 epoch, hai LR/mode, chọn bằng validation macro-F1 |
+| Đồ thị học và phân tích lỗi | Đã có đồ thị từng lượt và 20 chú giải lỗi fine-tuning do Codex đề xuất; chờ nhóm review độc lập |
+| So sánh ba phương pháp trên tập con | Đã đánh giá cùng test 7.600 mẫu, có metrics, confusion matrix, predictions và comparison.csv |
+| AG-16 và kiểm thử huấn luyện | 46 bài đạt, 0 skip; đã tải lại đủ ba model thật, kiểm tra encoder frozen/fine-tuning |
+| Audit/EDA, demo tổng hợp, báo cáo và slide | Nhóm tiếp tục hoàn thiện và review theo phân công |
+
+Kết quả đợt **5.000 mẫu train**: test macro-F1 baseline **0.872826**, frozen
+**0.892657**, fine-tuning **0.912578**. Xem [RESULTS.md](docs/RESULTS.md) cho
+bảng đầy đủ, nguồn artifact, tài nguyên và giới hạn. Đây không phải kết quả
+huấn luyện toàn bộ AG News. Model nằm trong `outputs/baseline/`,
+`outputs/frozen/`, `outputs/finetune/`; trọng số/tokenizer bị ignore trong Git
+và cần bàn giao riêng cùng `run.json`.
 
 Lần kiểm tra baseline trên 2.000 mẫu train có Accuracy test khoảng 0,8495 và macro-F1 khoảng 0,8482 trên 7.600 mẫu test. Đây là kết quả **kiểm tra luồng chạy với tập train nhỏ**, không phải kết quả của Transformer hoặc baseline đầy đủ. Chi tiết có trong [VALIDATION.md](docs/VALIDATION.md).
 

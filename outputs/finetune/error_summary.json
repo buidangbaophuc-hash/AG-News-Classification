@@ -1,0 +1,101 @@
+{
+  "run": "finetune",
+  "test_n": 7600,
+  "error_n": 665,
+  "requested_n": 20,
+  "selected_ids": [
+    4058,
+    5431,
+    2306,
+    3157,
+    5067,
+    3186,
+    2094,
+    7278,
+    344,
+    5338,
+    1840,
+    6185,
+    7418,
+    5020,
+    3747,
+    511,
+    7030,
+    2591,
+    2423,
+    1932
+  ],
+  "seed": 42,
+  "source_predictions_sha256": "269468004134640ff98ac8bbfcdc67f5ea697a729ff1b15e78747b505430e663",
+  "status": "reviewed",
+  "category_counts": {
+    "topic_overlap": 10,
+    "label_issue": 4,
+    "insufficient_context": 4,
+    "entity_ambiguity": 2
+  },
+  "confusion_pairs": [
+    {
+      "label": 3,
+      "predicted_label": 2,
+      "n": 165
+    },
+    {
+      "label": 2,
+      "predicted_label": 3,
+      "n": 151
+    },
+    {
+      "label": 0,
+      "predicted_label": 2,
+      "n": 81
+    },
+    {
+      "label": 0,
+      "predicted_label": 3,
+      "n": 63
+    },
+    {
+      "label": 2,
+      "predicted_label": 0,
+      "n": 52
+    },
+    {
+      "label": 0,
+      "predicted_label": 1,
+      "n": 50
+    },
+    {
+      "label": 3,
+      "predicted_label": 0,
+      "n": 49
+    },
+    {
+      "label": 1,
+      "predicted_label": 2,
+      "n": 22
+    },
+    {
+      "label": 1,
+      "predicted_label": 0,
+      "n": 12
+    },
+    {
+      "label": 3,
+      "predicted_label": 1,
+      "n": 9
+    },
+    {
+      "label": 1,
+      "predicted_label": 3,
+      "n": 7
+    },
+    {
+      "label": 2,
+      "predicted_label": 1,
+      "n": 4
+    }
+  ],
+  "reviewer": "Codex: qualitative reading of the 20 selected texts; pending team review",
+  "review_note": "Codex \u0111\u1ecdc t\u1eebng v\u0103n b\u1ea3n v\u00e0 \u0111\u1ec1 xu\u1ea5t nh\u00f3m/gi\u1ea3i th\u00edch. \u0110\u00e2y l\u00e0 gi\u1ea3 thuy\u1ebft \u0111\u1ecbnh t\u00ednh, ch\u01b0a ph\u1ea3i nguy\u00ean nh\u00e2n \u0111\u01b0\u1ee3c x\u00e1c minh b\u1eb1ng c\u01a1 ch\u1ebf model; nh\u00f3m c\u1ea7n review l\u1ea1i, nh\u1ea5t l\u00e0 nghi v\u1ea5n nh\u00e3n ngu\u1ed3n. M\u1eabu l\u1ea5y lu\u00e2n phi\u00ean theo c\u1eb7p nh\u1ea7m l\u1eabn n\u00ean t\u1ef7 l\u1ec7 nh\u00f3m kh\u00f4ng \u0111\u1ea1i di\u1ec7n cho to\u00e0n b\u1ed9 test. Kh\u00f4ng s\u1eeda nh\u00e3n th\u1eadt, kh\u00f4ng d\u00f9ng test \u0111\u1ec3 ch\u1ecdn l\u1ea1i c\u1ea5u h\u00ecnh. token_count t\u00ednh b\u1eb1ng tokenizer c\u1ee7a checkpoint tr\u01b0\u1edbc truncation, g\u1ed3m special tokens; over_max_length ch\u1ec9 ghi nh\u1eadn \u0111\u1ed9 d\u00e0i, kh\u00f4ng kh\u1eb3ng \u0111\u1ecbnh nguy\u00ean nh\u00e2n l\u1ed7i."
+}
