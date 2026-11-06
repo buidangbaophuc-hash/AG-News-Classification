@@ -1,0 +1,63 @@
+{
+  "finalized_at_utc": "2026-11-05T13:50:45.355947+00:00",
+  "scope": "5000-sample training subset; 3 epochs for each Transformer trial",
+  "selection_basis": "validation_macro_f1",
+  "best_validation_run": "finetune",
+  "config_sha256": {
+    "baseline": "505fcfb0cf161a680fdfe10ffaad309a0c37b1ae8ae31b605e1c84ffea11a6f0",
+    "frozen": "a13bdc4c33162889c47846ca844c7edec59e9cb7477fda087bbaf5e04ad525e8",
+    "finetune": "476aa864260b6977d33dba807aa52e12d91147bf3cc32dcd29de24533e52b901"
+  },
+  "test_used_for_selection": false,
+  "training_protocol": {
+    "protocol": {
+      "train_n": 5000,
+      "validation_n": 11992,
+      "train_sha256": "daf3a462722352b1e32251404c56939e00c03ea6c52f4b59ec15ee504c824d0b",
+      "validation_sha256": "b61a10f2594038187f5cc787551e41e3e942c780ecaebdd67460317d854fe701",
+      "seed": 42
+    },
+    "selection_basis": "validation_macro_f1",
+    "models": {
+      "frozen": {
+        "trials": {
+          "0.001": {
+            "folder": "outputs\\experiments\\frozen_lr0.001",
+            "validation_macro_f1": 0.8948798198967209,
+            "elapsed_seconds": 42.08,
+            "feature_encoding_seconds": 30.37
+          },
+          "0.0005": {
+            "folder": "outputs\\experiments\\frozen_lr0.0005",
+            "validation_macro_f1": 0.8942925005259945,
+            "elapsed_seconds": 11.81,
+            "feature_encoding_seconds": 0.41
+          }
+        },
+        "selected_learning_rate": 0.001,
+        "selection_basis": "validation_macro_f1",
+        "selected_folder": "outputs\\experiments\\frozen_lr0.001"
+      },
+      "finetune": {
+        "trials": {
+          "2e-05": {
+            "folder": "outputs\\experiments\\finetune_lr2e-05",
+            "validation_macro_f1": 0.9118283895774623,
+            "elapsed_seconds": 980.96,
+            "feature_encoding_seconds": 0.0
+          },
+          "5e-05": {
+            "folder": "outputs\\experiments\\finetune_lr5e-05",
+            "validation_macro_f1": 0.9121481430493321,
+            "elapsed_seconds": 151.44,
+            "feature_encoding_seconds": 0.0
+          }
+        },
+        "selected_learning_rate": 5e-05,
+        "selection_basis": "validation_macro_f1",
+        "selected_folder": "outputs\\experiments\\finetune_lr5e-05"
+      }
+    },
+    "test_used": false
+  }
+}

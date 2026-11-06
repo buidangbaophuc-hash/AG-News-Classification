@@ -1,0 +1,4 @@
+run,train_n,validation_n,validation_accuracy,validation_macro_f1,learning_rate,elapsed_seconds,trainable_parameters,device,scope
+baseline,5000,11992,0.8790860573715811,0.878600341755033,,4.08,200004,cpu,train_subset
+frozen,5000,11992,0.8947631754503002,0.8948798198967209,0.001,42.08,593668,cuda,train_subset
+finetune,5000,11992,0.912108072048032,0.9121481430493321,5e-05,151.44,66956548,cuda,train_subset

@@ -1,0 +1,40 @@
+{
+  "frozen": {
+    "trials": {
+      "0.001": {
+        "folder": "outputs\\experiments\\frozen_lr0.001",
+        "validation_macro_f1": 0.8948798198967209,
+        "elapsed_seconds": 42.08,
+        "feature_encoding_seconds": 30.37
+      },
+      "0.0005": {
+        "folder": "outputs\\experiments\\frozen_lr0.0005",
+        "validation_macro_f1": 0.8942925005259945,
+        "elapsed_seconds": 11.81,
+        "feature_encoding_seconds": 0.41
+      }
+    },
+    "selected_learning_rate": 0.001,
+    "selection_basis": "validation_macro_f1",
+    "selected_folder": "outputs\\experiments\\frozen_lr0.001"
+  },
+  "finetune": {
+    "trials": {
+      "2e-05": {
+        "folder": "outputs\\experiments\\finetune_lr2e-05",
+        "validation_macro_f1": 0.9118283895774623,
+        "elapsed_seconds": 980.96,
+        "feature_encoding_seconds": 0.0
+      },
+      "5e-05": {
+        "folder": "outputs\\experiments\\finetune_lr5e-05",
+        "validation_macro_f1": 0.9121481430493321,
+        "elapsed_seconds": 151.44,
+        "feature_encoding_seconds": 0.0
+      }
+    },
+    "selected_learning_rate": 5e-05,
+    "selection_basis": "validation_macro_f1",
+    "selected_folder": "outputs\\experiments\\finetune_lr5e-05"
+  }
+}
