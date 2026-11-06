@@ -13,7 +13,11 @@
   "dataset_sha256": "e1242b5b4fb4039896e1524b10792deb8d78000f241bb5cf7fdfff800a78d9ed",
   "run_config_sha256": "505fcfb0cf161a680fdfe10ffaad309a0c37b1ae8ae31b605e1c84ffea11a6f0",
   "model_sha256": {
+<<<<<<< HEAD
     "model.pkl": "9b0622fae1b4334d527ed2073e31cc568dee97a467594669722675bd144c2f62"
+=======
+    "model.pkl": "efb3d93154409206bc7b78fdbbf5d91a374c0607a37b05ce54417d57cc16b3ad"
+>>>>>>> upstream/tri
   },
   "model_source": "C:\\Users\\nottq\\AG-News-Classification\\outputs\\baseline",
   "metrics_sha256": "2639eb9ea9c426630c433dd44153e6b48d0be583338fd172dea5780785a475eb",

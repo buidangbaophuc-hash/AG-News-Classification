@@ -72,6 +72,7 @@ class CliTests(unittest.TestCase):
         self.assertTrue((self.root/'outputs/comparison.csv').is_file())
         self.assertTrue((self.root/'outputs/baseline/error_review.csv').is_file())
 
+<<<<<<< HEAD
     def test_missing_data_or_model_gives_friendly_cli_error(self):
         (self.root/'outputs/finetune').mkdir(parents=True)
         (self.root/'outputs/finetune/run.json').write_text(
@@ -92,6 +93,8 @@ class CliTests(unittest.TestCase):
                 self.assertEqual(result.exception.code, 2)
                 self.assertIn(expected, error.getvalue())
 
+=======
+>>>>>>> upstream/tri
 
 if __name__ == '__main__':
     unittest.main()

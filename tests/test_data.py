@@ -19,10 +19,14 @@ class DataTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 load_raw(p)
     def test_no_split_leakage(self):
+<<<<<<< HEAD
         paths = [ROOT/f'data/processed/{s}.csv' for s in ['train','validation','test']]
         if not all(p.is_file() for p in paths):
             self.skipTest('Awaiting data/processed/*.csv; run "python -m src.main prepare" after placing data/raw/*.csv')
         frames = [pd.read_csv(p) for p in paths]
+=======
+        frames = [pd.read_csv(ROOT/f'data/processed/{s}.csv') for s in ['train','validation','test']]
+>>>>>>> upstream/tri
         for i in range(3):
             for j in range(i):
                 self.assertFalse(set(frames[i].text) & set(frames[j].text))

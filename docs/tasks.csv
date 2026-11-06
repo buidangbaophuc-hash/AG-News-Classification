@@ -1,4 +1,5 @@
 Task ID,Người phụ trách,Tag,Task,Tiêu chí hoàn thành,Phụ thuộc,Mốc,Trạng thái
+<<<<<<< HEAD
 AG-01,Nguyễn Hoàng Minh Nhựt,#data,Kiểm tra dữ liệu gốc,"Đếm mẫu, nhãn, null, trùng; ghi data_audit.md",Không,Tuần 1,Review
 AG-02,Nguyễn Hoàng Minh Nhựt,#preprocessing,Chuẩn hóa và ghép văn bản,"Title + Description; giữ stopword, chữ hoa/thường gốc cho tokenizer",AG-01,Tuần 1,Review
 AG-03,Nguyễn Hoàng Minh Nhựt,#split,Chia train/validation,"Seed 42, stratify, loại giao nhau giữa các tập; kiểm thử nhãn 0..3",AG-02,Tuần 1,Review
@@ -7,10 +8,21 @@ AG-05,Bùi Đặng Bảo Phúc,#baseline,TF-IDF + Logistic Regression,Fit vector
 AG-06,Bùi Đặng Bảo Phúc,#frozen,Huấn luyện frozen encoder,Chạy --mode frozen; kiểm tra encoder requires_grad=False và eval(),AG-03,Tuần 2,Review
 AG-07,Bùi Đặng Bảo Phúc,#experiment,Chọn learning rate frozen,Thử 1e-3 và 5e-4; chọn bằng validation macro-F1; lưu riêng từng run,AG-06,Tuần 2,Review
 AG-08,Bùi Đặng Bảo Phúc,#analysis,Giải thích baseline và frozen,"Viết phương pháp, số tham số huấn luyện và hạn chế",AG-05; AG-07,Tuần 3,Review
+=======
+AG-01,TV1,#data,Kiểm tra dữ liệu gốc,"Đếm mẫu, nhãn, null, trùng; ghi data_audit.md",Không,Tuần 1,Todo
+AG-02,TV1,#preprocessing,Chuẩn hóa và ghép văn bản,"Title + Description; giữ stopword, chữ hoa/thường gốc cho tokenizer",AG-01,Tuần 1,Todo
+AG-03,TV1,#split,Chia train/validation,"Seed 42, stratify, loại giao nhau giữa các tập; kiểm thử nhãn 0..3",AG-02,Tuần 1,Todo
+AG-04,TV1,#eda,Phân tích dữ liệu,"Biểu đồ phân bố nhãn, độ dài; nhận xét truncation 128/256 token",AG-03,Tuần 1,Todo
+AG-05,TV2,#baseline,TF-IDF + Logistic Regression,Fit vectorizer chỉ trên train; lưu model và validation metrics,AG-03,Tuần 1,Review
+AG-06,TV2,#frozen,Huấn luyện frozen encoder,Chạy --mode frozen; kiểm tra encoder requires_grad=False và eval(),AG-03,Tuần 2,Review
+AG-07,TV2,#experiment,Chọn learning rate frozen,Thử 1e-3 và 5e-4; chọn bằng validation macro-F1; lưu riêng từng run,AG-06,Tuần 2,Review
+AG-08,TV2,#analysis,Giải thích baseline và frozen,"Viết phương pháp, số tham số huấn luyện và hạn chế",AG-05; AG-07,Tuần 3,Review
+>>>>>>> upstream/tri
 AG-09,Trần Đức Lĩnh,#finetuning,Fine-tuning DistilBERT,Chạy --mode finetune; encoder được cập nhật; lưu best validation checkpoint,AG-03,Tuần 2,Review
 AG-10,Trần Đức Lĩnh,#experiment,Chọn learning rate fine-tuning,"Thử 2e-5 và 5e-5; giữ cùng split, max_length và train limit",AG-09,Tuần 2,Review
 AG-11,Trần Đức Lĩnh,#optimization,Kiểm tra bộ nhớ và thời gian,"Ghi thiết bị, batch size, số tham số, thời gian; giảm batch khi OOM",AG-09,Tuần 2,Review
 AG-12,Trần Đức Lĩnh,#analysis,Giải thích fine-tuning,"Vẽ loss/validation-F1 từ run.json, nhận xét hội tụ",AG-10,Tuần 3,Review
+<<<<<<< HEAD
 AG-13,Nguyễn Đình Trí,#evaluation,Chuẩn hóa đánh giá,"Accuracy, macro-F1, per-class P/R/F1, confusion matrix thứ tự 0..3",AG-03,Tuần 1,Done
 AG-14,Nguyễn Đình Trí,#comparison,Đánh giá test và so sánh,Chỉ đánh giá test sau khi chốt cấu hình; tạo comparison.csv,AG-07; AG-10; AG-13,Tuần 3,Review
 AG-15,Nguyễn Đình Trí,#error-analysis,Phân tích lỗi,"Chọn ít nhất 20 mẫu sai từ test_predictions.csv, nhóm nguyên nhân",AG-14,Tuần 3,Review
@@ -19,3 +31,13 @@ AG-17,Đỗ Hoàng Đăng,#integration,Tích hợp project,Chuẩn hóa cấu tr
 AG-18,Đỗ Hoàng Đăng,#demo,Chuẩn bị demo dự đoán,"Ít nhất 8 bài tiếng Anh, 2/chủ đề; demo predict cho mô hình tốt nhất",AG-14,Tuần 3,Review
 AG-19,Đỗ Hoàng Đăng,#report,Tổng hợp báo cáo,"Ghép phần mỗi thành viên, bảng so sánh và nguồn; ghi đóng góp thực tế",AG-08; AG-12; AG-15,Tuần 3,Review
 AG-20,Đỗ Hoàng Đăng,#presentation,Chuẩn bị thuyết trình,"10–12 slide, chia lời cho cả 5 người, tập demo và trả lời câu hỏi",AG-19,Tuần 3,Review
+=======
+AG-13,TV4,#evaluation,Chuẩn hóa đánh giá,"Accuracy, macro-F1, per-class P/R/F1, confusion matrix thứ tự 0..3",AG-03,Tuần 1,Done
+AG-14,TV4,#comparison,Đánh giá test và so sánh,Chỉ đánh giá test sau khi chốt cấu hình; tạo comparison.csv,AG-07; AG-10; AG-13,Tuần 3,Review
+AG-15,TV4,#error-analysis,Phân tích lỗi,"Chọn ít nhất 20 mẫu sai từ test_predictions.csv, nhóm nguyên nhân",AG-14,Tuần 3,Review
+AG-16,TV4,#testing,Kiểm thử pipeline,"Kiểm tra mapping, split leakage, load model, dự đoán 4 chủ đề",AG-05; AG-09,Tuần 3,Review
+AG-17,TV5,#integration,Tích hợp project,Chuẩn hóa cấu trúc và CLI; kiểm tra chạy mới từ README,AG-03; AG-05,Tuần 2,Todo
+AG-18,TV5,#demo,Chuẩn bị demo dự đoán,"Ít nhất 8 bài tiếng Anh, 2/chủ đề; demo predict cho mô hình tốt nhất",AG-14,Tuần 3,Todo
+AG-19,TV5,#report,Tổng hợp báo cáo,"Ghép phần mỗi thành viên, bảng so sánh và nguồn; ghi đóng góp thực tế",AG-08; AG-12; AG-15,Tuần 3,Todo
+AG-20,TV5,#presentation,Chuẩn bị thuyết trình,"10–12 slide, chia lời cho cả 5 người, tập demo và trả lời câu hỏi",AG-19,Tuần 3,Todo
+>>>>>>> upstream/tri
