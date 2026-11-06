@@ -1,0 +1,19 @@
+{
+  "command": ".venv-gpu/Scripts/python.exe -m unittest discover -s tests -v",
+  "tests": 46,
+  "passed": 46,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "elapsed_seconds": 23.837,
+  "real_models_checked": [
+    "baseline",
+    "frozen",
+    "finetune"
+  ],
+  "artifacts_verified": {
+    "json_files": 57,
+    "png_files": 16,
+    "python_syntax_files": 19
+  }
+}

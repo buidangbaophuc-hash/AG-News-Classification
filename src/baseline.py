@@ -1,49 +1,41 @@
-import pandas as pd
+"""TV2: runnable CPU baseline, vocabulary fitted only on training data."""
+import json
+import pickle
+import time
+import platform
+from importlib.metadata import version
+from sklearn.pipeline import make_pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report, f1_score
+from .data import ROOT, read_split
+from .metrics import report
+from .evaluation import dataset_hash
 
-def run_baseline_tfidf(train_path='train.csv', test_path='test.csv'):
-    print("=== [AG-05] Running TF-IDF + Logistic Regression Baseline ===")
-    
-    # 1. Nạp dữ liệu
-    train_df = pd.read_csv(train_path, names=['Class Index', 'Title', 'Description'], header=0)
-    test_df = pd.read_csv(test_path, names=['Class Index', 'Title', 'Description'], header=0)
-    
-    # 2. Làm sạch dữ liệu
-    train_df['Class Index'] = pd.to_numeric(train_df['Class Index'], errors='coerce')
-    test_df['Class Index'] = pd.to_numeric(test_df['Class Index'], errors='coerce')
-    train_df = train_df.dropna(subset=['Class Index'])
-    test_df = test_df.dropna(subset=['Class Index'])
-    
-    train_df['label'] = train_df['Class Index'].astype(int)
-    test_df['label'] = test_df['Class Index'].astype(int)
-    
-    # 3. Ghép Title và Description
-    train_df['text'] = train_df['Title'].fillna('') + " " + train_df['Description'].fillna('')
-    test_df['text'] = test_df['Title'].fillna('') + " " + test_df['Description'].fillna('')
-    
-    # 4. Trích xuất đặc trưng TF-IDF
-    vectorizer = TfidfVectorizer(max_features=10000, stop_words='english', ngram_range=(1, 2))
-    X_train = vectorizer.fit_transform(train_df['text'])
-    X_test = vectorizer.transform(test_df['text'])
-    
-    # 5. Huấn luyện Logistic Regression
-    clf = LogisticRegression(max_iter=1000)
-    clf.fit(X_train, train_df['label'])
-    
-    # 6. Đánh giá kết quả
-    preds = clf.predict(X_test)
-    acc = accuracy_score(test_df['label'], preds)
-    macro_f1 = f1_score(test_df['label'], preds, average='macro')
-    
-    print(f"Accuracy: {acc:.4f}")
-    print(f"Macro F1: {macro_f1:.4f}\n")
-    
-    target_names = ['World (1)', 'Sports (2)', 'Business (3)', 'Sci/Tech (4)']
-    print(classification_report(test_df['label'], preds, target_names=target_names))
-    
-    return clf, vectorizer
-
-if __name__ == "__main__":
-    run_baseline_tfidf()
+def train(limit=0):
+    folder = ROOT/'outputs/baseline'
+    folder.mkdir(parents=True, exist_ok=True)
+    df = read_split('train', limit)
+    valid = read_split('validation')
+    model = make_pipeline(TfidfVectorizer(max_features=50000, ngram_range=(1, 2), sublinear_tf=True),
+                          LogisticRegression(max_iter=1000, random_state=42))
+    started = time.perf_counter()
+    model.fit(df.text, df.label)
+    with (folder/'model.pkl').open('wb') as f:
+        pickle.dump(model, f)
+    metrics = report(valid.label, model.predict(valid.text), folder, 'validation')
+    config = {
+        'model': 'tfidf_logistic', 'train_n': len(df), 'validation_n': len(valid),
+        'limit': limit, 'seed': 42, 'device': 'cpu',
+        'train_sha256': dataset_hash(df), 'validation_sha256': dataset_hash(valid),
+        'trainable_parameters': int(model[-1].coef_.size + model[-1].intercept_.size),
+        'elapsed_seconds': round(time.perf_counter() - started, 2),
+        'timing_scope': 'fit_validation_and_save',
+        'best_validation_macro_f1': metrics['macro_f1'],
+        'max_features': 50000, 'ngram_range': [1, 2], 'max_iter': 1000,
+        'experiment_scope': 'train_subset' if limit else 'full_train',
+        'software_versions': {name: version(name) for name in ('scikit-learn', 'numpy', 'pandas', 'matplotlib')},
+        'python_version': platform.python_version(),
+    }
+    (folder/'run.json').write_text(json.dumps(config, indent=2), encoding='utf-8')
+    print(config, flush=True)
+    return config

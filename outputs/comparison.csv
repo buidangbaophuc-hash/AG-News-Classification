@@ -1,0 +1,4 @@
+run,test_n,accuracy,macro_f1,train_n,training_seconds,trainable_parameters,model_name,seed,max_length,learning_rate,test_sha256,comparison_note
+baseline,7600,0.873421052631579,0.872825675336758,5000,4.08,200004,tfidf_logistic,42,,,e1242b5b4fb4039896e1524b10792deb8d78000f241bb5cf7fdfff800a78d9ed,
+frozen,7600,0.8925,0.8926565979619883,5000,42.08,593668,distilbert/distilbert-base-uncased,42,128.0,0.001,e1242b5b4fb4039896e1524b10792deb8d78000f241bb5cf7fdfff800a78d9ed,
+finetune,7600,0.9125,0.9125778216996381,5000,151.44,66956548,distilbert/distilbert-base-uncased,42,128.0,5e-05,e1242b5b4fb4039896e1524b10792deb8d78000f241bb5cf7fdfff800a78d9ed,

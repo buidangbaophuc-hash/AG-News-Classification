@@ -1,0 +1,21 @@
+{
+  "model": "tfidf_logistic",
+  "train_n": 5000,
+  "validation_n": 11992,
+  "limit": 5000,
+  "seed": 42,
+  "device": "cpu",
+  "train_sha256": "daf3a462722352b1e32251404c56939e00c03ea6c52f4b59ec15ee504c824d0b",
+  "validation_sha256": "b61a10f2594038187f5cc787551e41e3e942c780ecaebdd67460317d854fe701",
+  "trainable_parameters": 200004,
+  "elapsed_seconds": 4.08,
+  "timing_scope": "fit_validation_and_save",
+  "best_validation_macro_f1": 0.878600341755033,
+  "max_features": 50000,
+  "ngram_range": [
+    1,
+    2
+  ],
+  "max_iter": 1000,
+  "experiment_scope": "train_subset"
+}
