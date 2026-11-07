@@ -66,6 +66,29 @@ def main(argv=None):
     if getattr(args, 'limit', 0) < 0:
         parser.error('--limit must be >= 0')
     if args.command == 'prepare':
+<<<<<<< HEAD
+        try:
+            prepare()
+        except (OSError, ValueError) as exc:
+            parser.error(str(exc))
+    elif args.command == 'baseline':
+        from .baseline import train
+        try:
+            train(args.limit)
+        except (OSError, ValueError, ImportError) as exc:
+            parser.error(str(exc))
+    elif args.command == 'train':
+        if min(args.epochs, args.batch_size, args.max_length, args.gradient_accumulation_steps) < 1:
+            parser.error('epochs, batch-size, max-length and gradient-accumulation-steps must be positive')
+        try:
+            from .transformer import train
+            kwargs = {k: v for k, v in vars(args).items() if k not in ['command', 'no_amp']}
+            if hasattr(args, 'no_amp'):
+                kwargs['use_amp'] = not args.no_amp
+            train(**kwargs)
+        except (OSError, ValueError, ImportError) as exc:
+            parser.error(str(exc))
+=======
         prepare()
     elif args.command == 'baseline':
         from .baseline import train
@@ -78,6 +101,7 @@ def main(argv=None):
         if hasattr(args, 'no_amp'):
             kwargs['use_amp'] = not args.no_amp
         train(**kwargs)
+>>>>>>> upstream/tri
     elif args.command in ['evaluate', 'predict']:
         folder = ROOT/f'outputs/{args.run}'
         from .evaluation import evaluate_run, load_predictor

@@ -1,0 +1,9 @@
+demo_id,expected_topic,text,cli_command_best_model,baseline_predicted
+DEMO-01,World,World leaders met to discuss an international peace agreement.,"python -m src.main predict --run finetune --text ""World leaders met to discuss an international peace agreement.""",World
+DEMO-02,World,The government announced national election results in parliament.,"python -m src.main predict --run finetune --text ""The government announced national election results in parliament.""",World
+DEMO-03,Sports,The football team won the championship after the final match.,"python -m src.main predict --run finetune --text ""The football team won the championship after the final match.""",Sports
+DEMO-04,Sports,The tennis player won the tournament in three sets.,"python -m src.main predict --run finetune --text ""The tennis player won the tournament in three sets.""",Sports
+DEMO-05,Business,The company reported higher quarterly profits and rising revenue.,"python -m src.main predict --run finetune --text ""The company reported higher quarterly profits and rising revenue.""",Business
+DEMO-06,Business,Shares fell on the stock market after the earnings announcement.,"python -m src.main predict --run finetune --text ""Shares fell on the stock market after the earnings announcement.""",Business
+DEMO-07,Sci/Tech,Scientists developed a new computer chip for artificial intelligence.,"python -m src.main predict --run finetune --text ""Scientists developed a new computer chip for artificial intelligence.""",Sci/Tech
+DEMO-08,Sci/Tech,Researchers launched a space telescope to study distant galaxies.,"python -m src.main predict --run finetune --text ""Researchers launched a space telescope to study distant galaxies.""",Sci/Tech

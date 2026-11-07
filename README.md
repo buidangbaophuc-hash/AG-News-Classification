@@ -133,6 +133,18 @@ Sơ đồ thể hiện quan hệ giữa các thành phần. Vai trò riêng củ
 
 | Module | Trách nhiệm | Giao diện chính | Chủ trì |
 |---|---|---|---|
+<<<<<<< HEAD
+| `src/data.py` | Đọc CSV, chuẩn hóa, mapping, chia tập | `load_raw`, `clean_text`, `prepare`, `read_split` | Nguyễn Hoàng Minh Nhựt (TV1) |
+| `src/dataset.py` | Giữ tương thích import cũ; dùng chung xử lý trong `src/data.py` | `load_and_preprocess_data` | Nguyễn Hoàng Minh Nhựt (TV1) |
+| `src/baseline.py` | Fit TF-IDF và Logistic Regression, lưu pipeline | `train(limit)` | Bùi Đặng Bảo Phúc (TV2) |
+| `src/transformer.py` | Tokenize, tạo DataLoader, train và suy luận hai chế độ | `NewsDataset`, `loader`, `train`, `infer` | Trần Đức Lĩnh (TV3); Bùi Đặng Bảo Phúc (TV2) phối hợp frozen |
+| `src/metrics.py` | Tính chỉ số và xuất confusion matrix | `report(y, pred, folder, split)` | Nguyễn Đình Trí (TV4) |
+| `src/evaluation.py` | Đánh giá model đã lưu và so sánh test có nguồn gốc | `load_predictor`, `evaluate_run`, `compare_runs` | Nguyễn Đình Trí (TV4) |
+| `src/error_analysis.py` | Chọn mẫu sai và tổng hợp review nguyên nhân | `prepare_error_review`, `finalize_error_review` | Nguyễn Đình Trí (TV4) |
+| `src/main.py` | Phân tích tham số CLI và điều phối | `main()` | Đỗ Hoàng Đăng (TV5) |
+| `tests/test_data.py` | Kiểm tra hợp đồng dữ liệu và giao nhau giữa các tập | unittest | Nguyễn Hoàng Minh Nhựt (TV1) và Nguyễn Đình Trí (TV4) |
+| `tests/test_metrics.py` | Kiểm tra chỉ số, đầu vào và file JSON/PNG bằng nhãn mẫu | unittest | Nguyễn Đình Trí (TV4) |
+=======
 | `src/data.py` | Đọc CSV, chuẩn hóa, mapping, chia tập | `load_raw`, `clean_text`, `prepare`, `read_split` | TV1 |
 | `src/dataset.py` | Giữ tương thích import cũ; dùng chung xử lý trong `src/data.py` | `load_and_preprocess_data` | TV1 |
 | `src/baseline.py` | Fit TF-IDF và Logistic Regression, lưu pipeline | `train(limit)` | TV2 |
@@ -141,6 +153,7 @@ Sơ đồ thể hiện quan hệ giữa các thành phần. Vai trò riêng củ
 | `src/main.py` | Phân tích tham số CLI và điều phối | `main()` | TV5 |
 | `tests/test_data.py` | Kiểm tra hợp đồng dữ liệu và giao nhau giữa các tập | unittest | TV1 và TV4 |
 | `tests/test_metrics.py` | Kiểm tra chỉ số, đầu vào và file JSON/PNG bằng nhãn mẫu | unittest | TV4 |
+>>>>>>> upstream/tri
 
 Tên TV1–TV5 là chỗ giữ chỗ để thay bằng tên thành viên thật. TV3 giữ module Transformer chung; TV2 gửi phần thay đổi frozen qua pull request để hạn chế xung đột.
 
@@ -409,7 +422,11 @@ Chọn model đã huấn luyện và lưu thành công:
 .\.venv\Scripts\python.exe -m src.main predict --run finetune --text "Scientists announced a new artificial intelligence chip."
 ```
 
+<<<<<<< HEAD
+Nếu thiếu file CSV, kiểm tra `data/raw/` rồi chạy `prepare`. Nếu thiếu model khi `evaluate`/`predict`, cần chép checkpoint hoặc train đúng run trước; CLI sẽ báo rõ đường dẫn file dữ liệu hoặc mô hình còn thiếu.
+=======
 Nếu thiếu file CSV, kiểm tra data/raw rồi chạy prepare. Nếu thiếu model khi evaluate/predict, cần train đúng run trước. Bộ mã hiện chưa chuyển mọi lỗi file/dependency thành thông báo thân thiện; nhóm cần bổ sung trong bước hoàn thiện tích hợp.
+>>>>>>> upstream/tri
 
 ### 3.6. Audit, EDA và kiểm thử
 

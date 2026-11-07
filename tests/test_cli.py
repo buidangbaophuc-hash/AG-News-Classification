@@ -72,6 +72,29 @@ class CliTests(unittest.TestCase):
         self.assertTrue((self.root/'outputs/comparison.csv').is_file())
         self.assertTrue((self.root/'outputs/baseline/error_review.csv').is_file())
 
+<<<<<<< HEAD
+    def test_missing_data_or_model_gives_friendly_cli_error(self):
+        (self.root/'outputs/finetune').mkdir(parents=True)
+        (self.root/'outputs/finetune/run.json').write_text(
+            '{"mode": "finetune", "max_length": 128, "batch_size": 16}', encoding='utf-8'
+        )
+        cases = [
+            (['prepare'], 'data/raw/'),
+            (['baseline'], 'python -m src.main prepare'),
+            (['predict', '--run', 'finetune', '--text', 'News article'], 'Missing Transformer checkpoint/weights'),
+        ]
+        for args, expected in cases:
+            error = io.StringIO()
+            with self.subTest(args=args), patch('src.main.ROOT', self.root), \
+                    patch('src.data.ROOT', self.root), \
+                    patch('sys.argv', ['ag-news', *args]), redirect_stderr(error):
+                with self.assertRaises(SystemExit) as result:
+                    main()
+                self.assertEqual(result.exception.code, 2)
+                self.assertIn(expected, error.getvalue())
+
+=======
+>>>>>>> upstream/tri
 
 if __name__ == '__main__':
     unittest.main()
