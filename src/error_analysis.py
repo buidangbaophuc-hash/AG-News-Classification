@@ -5,7 +5,11 @@ from pathlib import Path
 import pandas as pd
 
 from .data import LABELS
+<<<<<<< HEAD
+from .evaluation import file_hash, file_hash_matches, read_json, read_test_evaluation
+=======
 from .evaluation import file_hash, read_json, read_test_evaluation
+>>>>>>> upstream/tri
 
 CATEGORIES = ('topic_overlap', 'insufficient_context', 'entity_ambiguity',
               'truncation', 'label_issue', 'other')
@@ -91,7 +95,11 @@ def finalize_error_review(folder):
     folder = Path(folder)
     _, _, _, predictions = read_test_evaluation(folder)
     summary = read_json(folder/'error_summary.json')
+<<<<<<< HEAD
+    if not file_hash_matches(folder/'test_predictions.csv', summary.get('source_predictions_sha256')):
+=======
     if file_hash(folder/'test_predictions.csv') != summary.get('source_predictions_sha256'):
+>>>>>>> upstream/tri
         raise ValueError('Predictions changed since error selection; use a new review')
     review = pd.read_csv(folder/'error_review.csv', keep_default_na=False, dtype={'text': str})
     required = {'sample_id', 'text', 'label', 'predicted_label', 'true_class',

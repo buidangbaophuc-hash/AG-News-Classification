@@ -22,6 +22,27 @@ def file_hash(path):
     return digest.hexdigest()
 
 
+<<<<<<< HEAD
+def file_hash_matches(path, expected_hash):
+    """Compare SHA-256 while tolerating Git LF/CRLF normalization on text files."""
+    if not expected_hash:
+        return False
+    path = Path(path)
+    if file_hash(path) == expected_hash:
+        return True
+    if path.suffix.lower() in ('.json', '.csv', '.txt', '.md'):
+        raw = path.read_bytes()
+        lf = raw.replace(b'\r\n', b'\n')
+        if hashlib.sha256(lf).hexdigest() == expected_hash:
+            return True
+        crlf = lf.replace(b'\n', b'\r\n')
+        if hashlib.sha256(crlf).hexdigest() == expected_hash:
+            return True
+    return False
+
+
+=======
+>>>>>>> upstream/tri
 def read_json(path):
     path = Path(path)
     try:
@@ -58,7 +79,17 @@ def load_predictor(run, folder):
     folder = Path(folder)
     config = read_json(folder/'run.json')
     if run == 'baseline':
+<<<<<<< HEAD
+        model_path = folder/'model.pkl'
+        if not model_path.is_file():
+            raise FileNotFoundError(
+                f'Missing baseline model: {model_path}. '
+                'Copy model.pkl or run "python -m src.main baseline" first.'
+            )
+        with model_path.open('rb') as stream:
+=======
         with (folder/'model.pkl').open('rb') as stream:
+>>>>>>> upstream/tri
             model = pickle.load(stream)
         if not np.array_equal(getattr(model, 'classes_', []), np.arange(len(LABELS))):
             raise ValueError('Baseline model must use all four labels 0..3')
@@ -66,16 +97,32 @@ def load_predictor(run, folder):
         def predict(texts):
             return model.predict(texts)
     else:
+<<<<<<< HEAD
+=======
         import torch
         from transformers import AutoModelForSequenceClassification, AutoTokenizer
         from .transformer import get_device, infer, loader
 
+>>>>>>> upstream/tri
         if config.get('mode') != run:
             raise ValueError(f'run.json mode must be {run}')
         max_length, batch_size = config.get('max_length'), config.get('batch_size', 16)
         if (type(max_length) is not int or max_length < 1
                 or type(batch_size) is not int or batch_size < 1):
             raise ValueError('run.json max_length and batch_size must be positive integers')
+<<<<<<< HEAD
+        weights = list(folder.glob('*.safetensors')) + list(folder.glob('pytorch_model*.bin'))
+        if not (folder/'config.json').is_file() or not weights:
+            raise FileNotFoundError(
+                f'Missing Transformer checkpoint/weights in {folder}. '
+                f'Copy the delivered {run} model files or run "python -m src.main train --mode {run}" first.'
+            )
+        import torch
+        from transformers import AutoModelForSequenceClassification, AutoTokenizer
+        from .transformer import get_device, infer, loader
+
+=======
+>>>>>>> upstream/tri
         device = get_device()
         model = AutoModelForSequenceClassification.from_pretrained(folder, local_files_only=True)
         expected = dict(enumerate(LABELS))
@@ -159,7 +206,11 @@ def read_test_evaluation(folder):
     for filename, key in [('run.json', 'run_config_sha256'),
                           ('test_metrics.json', 'metrics_sha256'),
                           ('test_predictions.csv', 'predictions_sha256')]:
+<<<<<<< HEAD
+        if not file_hash_matches(folder/filename, metadata.get(key)):
+=======
         if file_hash(folder/filename) != metadata.get(key):
+>>>>>>> upstream/tri
             raise ValueError(f'Stale or modified artifact: {folder/filename}; evaluate again')
     model_hashes = metadata.get('model_sha256')
     if not isinstance(model_hashes, dict) or not model_hashes:
@@ -173,7 +224,11 @@ def read_test_evaluation(folder):
         # Results may be shared without large model files. Use the recorded
         # source when available, rather than a different checkpoint at the output path.
         artifact = source_folder/filename
+<<<<<<< HEAD
+        if artifact.exists() and not file_hash_matches(artifact, expected_hash):
+=======
         if artifact.exists() and file_hash(artifact) != expected_hash:
+>>>>>>> upstream/tri
             raise ValueError(f'Stale or modified artifact: {artifact}; evaluate again')
     frame = pd.read_csv(folder/'test_predictions.csv', keep_default_na=False, dtype={'text': str})
     validate_frame(frame, predictions=True)
