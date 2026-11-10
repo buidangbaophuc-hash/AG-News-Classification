@@ -133,16 +133,16 @@ Sơ đồ thể hiện quan hệ giữa các thành phần. Vai trò riêng củ
 
 | Module | Trách nhiệm | Giao diện chính | Chủ trì |
 |---|---|---|---|
-| `src/data.py` | Đọc CSV, chuẩn hóa, mapping, chia tập | `load_raw`, `clean_text`, `prepare`, `read_split` | TV1 |
-| `src/dataset.py` | Giữ tương thích import cũ; dùng chung xử lý trong `src/data.py` | `load_and_preprocess_data` | TV1 |
-| `src/baseline.py` | Fit TF-IDF và Logistic Regression, lưu pipeline | `train(limit)` | TV2 |
-| `src/transformer.py` | Tokenize, tạo DataLoader, train và suy luận hai chế độ | `NewsDataset`, `loader`, `train`, `infer` | TV3; TV2 phối hợp frozen |
-| `src/metrics.py` | Tính chỉ số và xuất confusion matrix | `report(y, pred, folder, split)` | TV4 |
-| `src/main.py` | Phân tích tham số CLI và điều phối | `main()` | TV5 |
-| `tests/test_data.py` | Kiểm tra hợp đồng dữ liệu và giao nhau giữa các tập | unittest | TV1 và TV4 |
-| `tests/test_metrics.py` | Kiểm tra chỉ số, đầu vào và file JSON/PNG bằng nhãn mẫu | unittest | TV4 |
+| `src/data.py` | Đọc CSV, chuẩn hóa, mapping, chia tập | `load_raw`, `clean_text`, `prepare`, `read_split` | Nguyễn Hoàng Minh Nhựt |
+| `src/dataset.py` | Giữ tương thích import cũ; dùng chung xử lý trong `src/data.py` | `load_and_preprocess_data` | Nguyễn Hoàng Minh Nhựt |
+| `src/baseline.py` | Fit TF-IDF và Logistic Regression, lưu pipeline | `train(limit)` | Bùi Đặng Bảo Phúc |
+| `src/transformer.py` | Tokenize, tạo DataLoader, train và suy luận hai chế độ | `NewsDataset`, `loader`, `train`, `infer` | Trần Đức Lĩnh; Bùi Đặng Bảo Phúc phối hợp frozen |
+| `src/metrics.py` | Tính chỉ số và xuất confusion matrix | `report(y, pred, folder, split)` | Nguyễn Đình Trí |
+| `src/main.py` | Phân tích tham số CLI và điều phối | `main()` | Đỗ Đăng |
+| `tests/test_data.py` | Kiểm tra hợp đồng dữ liệu và giao nhau giữa các tập | unittest | Nguyễn Hoàng Minh Nhựt và Nguyễn Đình Trí |
+| `tests/test_metrics.py` | Kiểm tra chỉ số, đầu vào và file JSON/PNG bằng nhãn mẫu | unittest | Nguyễn Đình Trí |
 
-Tên TV1–TV5 là chỗ giữ chỗ để thay bằng tên thành viên thật. TV3 giữ module Transformer chung; TV2 gửi phần thay đổi frozen qua pull request để hạn chế xung đột.
+Danh sách thành viên và vai trò được ghi trong [PHAN_CONG.md](docs/PHAN_CONG.md). Trần Đức Lĩnh giữ module Transformer chung; Bùi Đặng Bảo Phúc gửi phần thay đổi frozen qua pull request để hạn chế xung đột.
 
 ### 2.3. Folder structure – Cấu trúc thư mục
 
@@ -285,10 +285,10 @@ Kế hoạch tương đối trong 3 tuần; nhóm chốt ngày bắt đầu và 
 
 | Mốc | Thời gian | Sản phẩm / điều kiện hoàn thành | Chủ trì |
 |---|---|---|---|
-| M0 – Chốt Define & Design | Đầu tuần 1 | Thống nhất phạm vi, hợp đồng dữ liệu, pipeline, phân công và tiêu chí nghiệm thu | Cả nhóm; TV5 tổng hợp |
-| M1 – Dữ liệu và baseline | Cuối tuần 1 | Audit/EDA, chia tập kiểm chứng được, baseline và module metrics chạy được | TV1, TV2, TV4 |
-| M2 – Hai chế độ Transformer | Cuối tuần 2 | Frozen/fine-tuning chạy được; lưu checkpoint và cấu hình; chọn siêu tham số bằng validation | TV2, TV3; TV5 tích hợp |
-| M3 – Đánh giá và bàn giao | Cuối tuần 3 | Test, bảng so sánh, phân tích lỗi, demo, báo cáo và slide | TV4, TV5; cả nhóm đóng góp |
+| M0 – Chốt Define & Design | Đầu tuần 1 | Thống nhất phạm vi, hợp đồng dữ liệu, pipeline, phân công và tiêu chí nghiệm thu | Cả nhóm; Đỗ Đăng tổng hợp |
+| M1 – Dữ liệu và baseline | Cuối tuần 1 | Audit/EDA, chia tập kiểm chứng được, baseline và module metrics chạy được | Nguyễn Hoàng Minh Nhựt, Bùi Đặng Bảo Phúc, Nguyễn Đình Trí |
+| M2 – Hai chế độ Transformer | Cuối tuần 2 | Frozen/fine-tuning chạy được; lưu checkpoint và cấu hình; chọn siêu tham số bằng validation | Bùi Đặng Bảo Phúc, Trần Đức Lĩnh; Đỗ Đăng tích hợp |
+| M3 – Đánh giá và bàn giao | Cuối tuần 3 | Test, bảng so sánh, phân tích lỗi, demo, báo cáo và slide | Nguyễn Đình Trí, Đỗ Đăng; cả nhóm đóng góp |
 
 Phân công chi tiết: [PHAN_CONG.md](docs/PHAN_CONG.md). Bảng task: [tasks.csv](docs/tasks.csv). Mỗi người có 4 task; các task thể hiện phần công việc cần chạy, kiểm tra và hoàn thiện từ bộ mã khởi tạo.
 
@@ -303,7 +303,7 @@ Phân công chi tiết: [PHAN_CONG.md](docs/PHAN_CONG.md). Bảng task: [tasks.c
 | Văn bản bị cắt hoặc ngoài miền dữ liệu | Mất thông tin, dự đoán không phù hợp | Phân tích độ dài token; cân nhắc 128/256 qua validation; nêu giới hạn ngôn ngữ và bốn chủ đề |
 | Chạy lại ghi đè output | Mất kết quả cũ | Hiện mỗi mode dùng một thư mục cố định; sao lưu cả thư mục trước khi chạy lại; dự kiến mở rộng run ID |
 | Phiên bản thư viện khác nhau | Khó tái hiện hoặc không chạy | Dùng .venv; ghi phiên bản đã chạy; chốt dependency sau khi kiểm chứng Transformer |
-| Nhiều người sửa module chung | Xung đột merge | Nhánh riêng theo task, pull request và review; TV3 điều phối module Transformer |
+| Nhiều người sửa module chung | Xung đột merge | Nhánh riêng theo task, pull request và review; Trần Đức Lĩnh điều phối module Transformer |
 | So sánh ít mẫu với full hoặc khác backbone | So sánh thiếu công bằng | Kiểm tra train_n, test_n, backbone, seed và cấu hình trước khi viết kết luận |
 | Dao động giữa lần huấn luyện | Kết luận từ một lần chạy chưa chắc chắn | Seed mặc định 42; nếu đủ tài nguyên, mở rộng nhiều seed và báo mean/std; chưa khẳng định tái hiện tuyệt đối trên GPU |
 
@@ -451,11 +451,11 @@ Các ghi chú AG-05–AG-08 từ phần README chưa thống nhất được gi�
 
 ## 5. Quy trình làm việc nhóm
 
-- Thay TV1–TV5 bằng tên thật trong tài liệu phân công.
+- Dùng thống nhất tên thành viên theo [tài liệu phân công](docs/PHAN_CONG.md).
 - Tạo nhánh riêng theo task, ví dụ feature/AG-01-data-audit; commit gắn mã task.
 - Theo dõi trạng thái Todo → In progress → Review → Done.
 - Mỗi task có một người chủ trì; Done khi có sản phẩm, cách kiểm tra và ít nhất một người review.
-- Mỗi người viết phần phương pháp/kết quả của mình; TV5 tổng hợp báo cáo và điều phối demo.
+- Mỗi người viết phần phương pháp/kết quả của mình; Đỗ Đăng tổng hợp báo cáo và điều phối demo.
 - Không commit .venv, dữ liệu hoặc model theo mặc định; cung cấp dữ liệu riêng cho thành viên và kiểm tra điều khoản nguồn trước khi phân phối công khai.
 
 ## 6. Roadmap – Lộ trình phát triển
@@ -464,10 +464,10 @@ Lộ trình bám theo các mốc ở mục 2.6 và [bảng phân công](docs/PHA
 
 | Giai đoạn | Thời gian | Task | Phụ trách | Đầu ra cần bàn giao |
 |---|---|---|---|---|
-| Chuẩn bị dữ liệu, baseline và đánh giá | Tuần 1 | AG-01–AG-05, AG-13 | TV1, TV2, TV4 | Audit/EDA, train/validation/test không giao nhau, baseline, module metrics và kiểm thử đánh giá |
-| Huấn luyện và chọn cấu hình | Tuần 2 | AG-06–AG-07, AG-09–AG-11, AG-17 | TV2, TV3, TV5 | Frozen và fine-tuning, checkpoint tốt nhất theo validation macro-F1, cấu hình từng run, thông tin tài nguyên và CLI tích hợp |
-| Đánh giá cuối, phân tích và kiểm thử | Tuần 3 | AG-08, AG-12, AG-14–AG-16 | TV2, TV3, TV4 | Giải thích phương pháp, đồ thị học, metrics/confusion matrix trên test, comparison.csv, ít nhất 20 mẫu sai và kiểm thử pipeline |
-| Demo và bàn giao | Tuần 3 | AG-18–AG-20 | TV5; cả nhóm phối hợp | Demo ít nhất 8 tin thuộc bốn chủ đề, báo cáo, 10–12 slide và kiểm chứng chạy lại theo README |
+| Chuẩn bị dữ liệu, baseline và đánh giá | Tuần 1 | AG-01–AG-05, AG-13 | Nguyễn Hoàng Minh Nhựt, Bùi Đặng Bảo Phúc, Nguyễn Đình Trí | Audit/EDA, train/validation/test không giao nhau, baseline, module metrics và kiểm thử đánh giá |
+| Huấn luyện và chọn cấu hình | Tuần 2 | AG-06–AG-07, AG-09–AG-11, AG-17 | Bùi Đặng Bảo Phúc, Trần Đức Lĩnh, Đỗ Đăng | Frozen và fine-tuning, checkpoint tốt nhất theo validation macro-F1, cấu hình từng run, thông tin tài nguyên và CLI tích hợp |
+| Đánh giá cuối, phân tích và kiểm thử | Tuần 3 | AG-08, AG-12, AG-14–AG-16 | Bùi Đặng Bảo Phúc, Trần Đức Lĩnh, Nguyễn Đình Trí | Giải thích phương pháp, đồ thị học, metrics/confusion matrix trên test, comparison.csv, ít nhất 20 mẫu sai và kiểm thử pipeline |
+| Demo và bàn giao | Tuần 3 | AG-18–AG-20 | Đỗ Đăng; cả nhóm phối hợp | Demo ít nhất 8 tin thuộc bốn chủ đề, báo cáo, 10–12 slide và kiểm chứng chạy lại theo README |
 
 **Thứ tự phụ thuộc:** thống nhất dữ liệu và cách chia tập → huấn luyện → chốt cấu hình bằng validation → đánh giá test và so sánh → phân tích lỗi → hoàn thiện demo, báo cáo và slide. Chỉ đánh giá test sau khi chốt cấu hình; không dùng test để điều chỉnh siêu tham số.
 
